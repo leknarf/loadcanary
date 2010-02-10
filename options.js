@@ -10,18 +10,20 @@ var testConfig = {
     method: 'GET',
     host: '',
     port: 80,
-    numClients: 10,
-    numRequests: 30,
+    numClients: 1,
+    numRequests: 1,
+    timeLimit: null,
     path: '/',
     reqPerClient: this.numClients / this.numRequests,
     requestGenerator: null
 };
 var switches = [
-    [ '-n', '--number NUMBER', 'Number of requests to make' ],
-    [ '-c', '--concurrency NUMBER', 'Concurrent number of connections' ],
-    [ '-m', '--method STRING', 'HTTP method to use' ],
-    [ '-q', '--quiet', 'Supress progress count info'],
-    [ '-r', '--request-generator STRING', 'Path to module that defines makeRequest function'],
+    [ '-n', '--number NUMBER', 'Number of requests to make. Defaults to 1.' ],
+    [ '-c', '--concurrency NUMBER', 'Concurrent number of connections. Defaults to 1.' ],
+    [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default.' ],
+    [ '-m', '--method STRING', 'HTTP method to use.' ],
+    [ '-q', '--quiet', 'Supress display of progress count info.'],
+    [ '-r', '--request-generator STRING', 'Path to module that exports getRequest function'],
     [ '-u', '--usage', 'Show usage info' ],
 ];
 
@@ -63,6 +65,12 @@ parser.on('concurrency', function(opt, value) {
 parser.on('number', function(opt, value) {
     testConfig.numRequests = Number(value);
 });
+
+parser.on(
+    'time-limit', function(opt, value) {
+        testConfig.timeLimit = Number(value);
+    }
+);
 
 parser.on('method', function(opt, value) {
     testConfig.method = value;

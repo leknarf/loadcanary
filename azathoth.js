@@ -42,15 +42,16 @@ var requestGenerator = options.get('requestGenerator');
 
 var elapsedStart;
 var elapsedTime;
-var totalTime = 0;
 var bytesTransferred = 0;
 var responseTimes = [];
 
-function stats(v) {
-    var l = v.length
-    var mean = v.reduce(function (a, b) { return a + b }) / l;
+function stats(responseTimes) {
+    responseTimes.sort(function(a, b) { return a - b });
+    var l = responseTimes.length
+    var mean = responseTimes.reduce(function (a, b) { return a + b }) / l;
+
     var s = 0;
-    v.forEach(function (val) {
+    responseTimes.forEach(function (val) {
         s += Math.pow(val - mean, 2);
     });
     var variance = s / l;
@@ -71,6 +72,7 @@ function stats(v) {
         deviation: deviation,
         min: min,
         max: max,
+        median: percentile(0.5),
         ninety: percentile(0.9), ninetyFive: percentile(0.95), ninetyNine: percentile(0.99)
     };
 }
@@ -100,11 +102,11 @@ function printReport(report) {
     }
 
     printReportItem('Concurrency Level', numClients);
-    printReportItem('Number of requests', numRequests);
+    printReportItem('Number of requests', responseTimes.length);
     printReportItem('Body bytes transferred', bytesTransferred);
     printReportItem('Elapsed time (s)', (elapsedTime/1000).toFixed(2));
-    printReportItem('Time spent waiting on requests (s)', (totalTime/1000).toFixed(2));
-    printReportItem('Requests per second', (report.stats.mean/elapsedTime).toFixed(2));
+    printReportItem('Requests per second', (responseTimes.length/(elapsedTime/1000)).toFixed(2));
+    printReportItem('Median time per request (ms)', report.stats.median.toFixed(2));
     printReportItem('Mean time per request (ms)', report.stats.mean.toFixed(2));
     printReportItem('Time per request standard deviation', report.stats.deviation.toFixed(2));
     
@@ -121,23 +123,22 @@ function doClientRequests(clientIdCounter) {
     var j = 0;
 
     //sys.puts("Client " +clientIdCounter+  " reporting in!");
-    
     var connection = http.createClient(port, host);
     function doRequest() {
         if (++j > numRequests/numClients) return;
 
-        var start = (new Date()).getTime();
         var request;
-        if (requestGenerator == null)
+        if (requestGenerator == null) {
             request = connection.request(method, path, { 'host': host });
-        else
-            request = requestGenerator.getRequest();
+        } else {
+            request = requestGenerator.getRequest(connection);
+        }
+        var start = (new Date()).getTime();
 
         request.finish(function(response) {
             var end = (new Date()).getTime();
             var	delta = end - start;
             responseTimes.push(delta);
-            totalTime += delta;
             var len = responseTimes.length;
 
             if (!options.get('quiet')) {
@@ -146,24 +147,22 @@ function doClientRequests(clientIdCounter) {
                 }
             }
 
-            if (len == numRequests) {
-                elapsedTime = (new Date()) - elapsedStart;
-                var s = stats(responseTimes);
-                var report = {
-                    stats: s
-                };
-                printReport(report);
-                return;
-            }
-
-            response.addListener('body', function (body) {
+            response.addListener('body', function(body) {
                 bytesTransferred += body.length;
+                // display results after we count the body of the last request
+                if (len == numRequests) {
+                    elapsedTime = (new Date()) - elapsedStart;
+                    var s = stats(responseTimes);
+                    var report = {
+                        stats: s
+                    };
+                    printReport(report);
+                }
+                // Tee up next request after this one finishes.
+                process.nextTick(doRequest);
             });
         });
-        // Keep running doRequest until we hit target num requests or elapsed time.
-        process.nextTick(arguments.callee);
     }
-
     process.nextTick(doRequest);
 }
 
