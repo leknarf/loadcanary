@@ -25,58 +25,26 @@
 */
 
 var sys = require('sys'),
-   http = require('http'),
-   url = require('url'),
-   path = require('path');
+    http = require('http');
 
-require.paths.push(path.join(__dirname, 'optparse-js', 'src'));
-var optparse = require('optparse');
+var options = require('./options');
+options.process();
 
-jjj = JSON.stringify
+var url = options.get('url');
+var method = options.get('method');
+var host = options.get('host');
+var port = options.get('port');
+var numClients = options.get('numClients');
+var numRequests = options.get('numRequests');
+var path = options.get('path');
+var reqPerClient = options.get('reqPerClient');
+var requestGenerator = options.get('requestGenerator');
 
-// Default options
-var hostURL;
-var method = 'GET';
-var host;
-var port = 80;
-var numClients = 10;
-var numRequests = 30;
-var path = '/';
-var reqPerClient = numClients / numRequests;
-
-var switches = [
-    [ '-n', '--number NUMBER', 'Number of requests to make' ],
-    [ '-c', '--concurrency NUMBER', 'Concurrent number of connections' ],
-    [ '-m', '--method STRING', 'HTTP method to use' ],
-    [ '-h', '--help', 'Show this help' ],
-];
-
-// Create a new OptionParser.
-var parser = new optparse.OptionParser(switches);
-parser.on('help', function() {
-    sys.puts('Help');
-});
-
-parser.on(2, function (value) {
-    hostURL = url.parse(value, false);
-    host = hostURL.hostname || host;
-    port = Number(hostURL.port) || port;
-    path = hostURL.pathname || path;
-});
-
-parser.on('concurrency', function(opt, value) {
-    numClients = Number(value);
-});
-
-parser.on('number', function(opt, value) {
-    numRequests = Number(value);
-});
-
-parser.on('method', function(opt, value) {
-    method = value;
-});
-
-parser.parse(process.ARGV);
+var elapsedStart;
+var elapsedTime;
+var totalTime = 0;
+var bytesTransferred = 0;
+var responseTimes = [];
 
 function stats(v) {
     var l = v.length
@@ -88,98 +56,121 @@ function stats(v) {
     var variance = s / l;
     var deviation = Math.sqrt(variance);
 
-    return { variance: variance, mean: mean, deviation: deviation };
-}
 
-var elapsedStart;
-var elapsedTime;
-var totalTime = 0;
-var bytesTransferred = 0;
-var times = [];
-var clientId = 0;
+    var percentile = function(percent) {
+        var t = responseTimes[Math.floor(responseTimes.length*percent)];
+        return t;
+    };
+    var min = responseTimes[0];
+    var max = responseTimes[responseTimes.length-1];
+
+
+    return {
+        variance: variance,
+        mean: mean,
+        deviation: deviation,
+        min: min,
+        max: max,
+        ninety: percentile(0.9), ninetyFive: percentile(0.95), ninetyNine: percentile(0.99)
+    };
+}
 
 function pad(str, width) {
-    return (new Array(width-str.length)).join(" ") + str;
+    return str + (new Array(width-str.length)).join(" ");
 }
 
-function printReportItem(name, val) {
-    sys.puts(pad(name + ":", 40) + " " + val);
+function printReportItem(name, val, padLength) {
+    if (padLength == undefined)
+        padLength = 40;
+    sys.puts(pad(name + ":", padLength) + " " + val);
 }
 
 function printReport(report) {
-    //sys.puts('Server Software:'  Cherokee/0.99.38
-    sys.puts('');
+    if (!options.get('quiet')) {
+        sys.puts('');
+    }
     printReportItem('Server Hostname', host);
     printReportItem('Server Port', port)
 
-    printReportItem('HTTP Method', method)
-    printReportItem('Document Path', path)
-    //printReportItem('Document Length'  2141 bytes
+    if (requestGenerator == null) {
+        printReportItem('HTTP Method', method)
+        printReportItem('Document Path', path)
+    } else {
+        printReportItem('Request Generator', options.get('requestGeneratorModule'));
+    }
 
     printReportItem('Concurrency Level', numClients);
     printReportItem('Number of requests', numRequests);
-    //printReportItem('Time taken for tests'  0.120 seconds)
-    //printReportItem('Complete requests', 1)
-    //printReportItem('Failed requests'  0)
-    //printReportItem('Write errors'  0)
-    //rintReportItem('Total transferred'  2344 bytes)
-    //printReportItem('HTML transferred'  2141 bytes)
     printReportItem('Body bytes transferred', bytesTransferred);
-    printReportItem('Elapsed time (s)', elapsedTime/1000);
-    printReportItem('Time spent waiting on requests (s)', totalTime/1000);
-    printReportItem('Requests per second', (1000*report.stats.mean/elapsedTime));
-    printReportItem('Mean time per request (ms)', report.stats.mean);
-    printReportItem('Time per request standard deviation', report.stats.deviation);
-    //printReportItem('Time per request', report.mean + '[ms] (mean)');
-    //printReportItem('Transfer rate'  19.08 [Kbytes/sec] received)
+    printReportItem('Elapsed time (s)', (elapsedTime/1000).toFixed(2));
+    printReportItem('Time spent waiting on requests (s)', (totalTime/1000).toFixed(2));
+    printReportItem('Requests per second', (report.stats.mean/elapsedTime).toFixed(2));
+    printReportItem('Mean time per request (ms)', report.stats.mean.toFixed(2));
+    printReportItem('Time per request standard deviation', report.stats.deviation.toFixed(2));
+    
+    sys.puts('');
+    sys.puts('Percentages of requests served within a certain time (ms)');
+    printReportItem("  Min", report.stats.min, 6);
+    printReportItem("  90%", report.stats.ninety, 6);
+    printReportItem("  95%", report.stats.ninetyFive, 6);
+    printReportItem("  99%", report.stats.ninetyNine, 6);
+    printReportItem("  Max", report.stats.max, 6);
 }
 
-function doClientRequests() {
+function doClientRequests(clientIdCounter) {
     var j = 0;
 
-//     sys.puts("Client " +clientId+  " reporting in!");
+    //sys.puts("Client " +clientIdCounter+  " reporting in!");
     
-    var myId = clientId;
     var connection = http.createClient(port, host);
     function doRequest() {
         if (++j > numRequests/numClients) return;
 
         var start = (new Date()).getTime();
-        var request = connection.request(method, path, { 'host': host });
+        var request;
+        if (requestGenerator == null)
+            request = connection.request(method, path, { 'host': host });
+        else
+            request = requestGenerator.getRequest();
+
         request.finish(function(response) {
             var end = (new Date()).getTime();
             var	delta = end - start;
-            times.push(delta);
+            responseTimes.push(delta);
             totalTime += delta;
-// 	    sys.puts('Client ' +myId+  ' received response in ' +delta+ 'ms.');
-            var len = times.length;
+            var len = responseTimes.length;
 
-            if ((len % (numRequests/10)) == 0) {
-                sys.puts(pad('Completed ' +times.length+ ' requests', 40) + ' ('+ (len/numRequests*100) + '%)');
+            if (!options.get('quiet')) {
+                if ((len % (numRequests/10)) == 0) {
+                    sys.puts(pad('Completed ' +responseTimes.length+ ' requests', 40) + ' ('+ (len/numRequests*100) + '%)');
+                }
             }
+
             if (len == numRequests) {
                 elapsedTime = (new Date()) - elapsedStart;
-                var s = stats(times);
+                var s = stats(responseTimes);
                 var report = {
                     stats: s
                 };
                 printReport(report);
                 return;
             }
+
             response.addListener('body', function (body) {
                 bytesTransferred += body.length;
             });
         });
+        // Keep running doRequest until we hit target num requests or elapsed time.
         process.nextTick(arguments.callee);
     }
+
     process.nextTick(doRequest);
 }
 
 function main() {
     elapsedStart = new Date();
-    for (var i = 0; i < numClients; i++) {
-        doClientRequests();
-        clientId++;
+    for (var clientIdCounter = 0; clientIdCounter < numClients; clientIdCounter++) {
+        doClientRequests(clientIdCounter);
     }
 }
 
