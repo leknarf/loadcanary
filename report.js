@@ -1,5 +1,7 @@
 var sys = require('sys');
 
+var reportText = "";
+
 function calcStats(responseTimes) {
     responseTimes.sort(function(a, b) { return a - b });
     var l = responseTimes.length
@@ -40,7 +42,10 @@ exports.pad = pad;
 function printItem(name, val, padLength) {
     if (padLength == undefined)
         padLength = 40;
-    sys.puts(pad(name + ":", padLength) + " " + val);
+
+    var reportData = pad(name + ":", padLength) + " " + val;
+    sys.puts(reportData);
+    reportText += reportData + "\n";
 }
 
 exports.print = function(results, options) {
@@ -68,8 +73,9 @@ exports.print = function(results, options) {
     printItem('Mean time per request (ms)', stats.mean.toFixed(2));
     printItem('Time per request standard deviation', stats.deviation.toFixed(2));
     
-    sys.puts('');
-    sys.puts('Percentages of requests served within a certain time (ms)');
+    var tmp = '\nPercentages of requests served within a certain time (ms)';
+    sys.puts(tmp);
+    reportText += tmp + '\n';
     printItem("  Min", stats.min, 6);
     printItem("  50%", stats.median, 6)
     printItem("  90%", stats.ninety, 6);
@@ -103,7 +109,8 @@ exports.print = function(results, options) {
 
 function writeHtmlReport(flotData) {
     var posix = require("posix");
-    var fileName = 'results-chart-' + new Date().getTime() + ".html";
+    var now = new Date();
+    var fileName = 'results-chart-' + now.getTime() + ".html";
     posix.open(
         fileName,
         process.O_WRONLY|process.O_CREAT|process.O_APPEND,
@@ -113,7 +120,8 @@ function writeHtmlReport(flotData) {
             write(posix, fd, "<html>\n<head><title>Response Times over Time</title>\n");
             write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
             write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
-            write(posix, fd, '</head>\n<body>\n<h2>x = number of requests, y = response times (ms)</h2>\n');
+            write(posix, fd, '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>');
+            write(posix, fd, '<h2>x = number of requests, y = response times (ms)</h2>\n');
             write(posix, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
             write(posix, fd, '<script id="source" language="javascript" type="text/javascript">\n');
             write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });');
