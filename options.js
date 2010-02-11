@@ -30,7 +30,7 @@ var switches = [
 
 // Create a new OptionParser.
 var parser = new optparse.OptionParser(switches);
-parser.banner = 'azathoth.js [options] <host>:<port>/<path>';
+parser.banner = 'azathoth.js [options] <host>:<port>[<path>]';
 parser.on('usage', function() {
     help();
 });
