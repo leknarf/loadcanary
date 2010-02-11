@@ -86,7 +86,7 @@ exports.print = function(results, options) {
             //sys.puts(cat + ": " + categories[cat].length);
             for (var i = 10; i <= 100; i += 10) {
                 var pct = i / 100;
-                var idx = Math.round(rawResponseTimes.length * pct);
+                var idx = Math.ceil(rawResponseTimes.length * pct);
                 var responseTimes = rawResponseTimes.slice(0, idx);
                 var stats = calcStats(responseTimes);
                 categories[cat].push([idx, stats[cat].toFixed(2)]);
@@ -113,7 +113,7 @@ function writeHtmlReport(flotData) {
             write(posix, fd, "<html>\n<head><title>Response Times over Time</title>\n");
             write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
             write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
-            write(posix, fd, '</head>\n<body>\n\n');
+            write(posix, fd, '</head>\n<body>\n<h2>x = number of requests, y = response times (ms)</h2>\n');
             write(posix, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
             write(posix, fd, '<script id="source" language="javascript" type="text/javascript">\n');
             write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });');
