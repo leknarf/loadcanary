@@ -28,6 +28,8 @@ var sys = require('sys'),
     http = require('http');
 
 var options = require('./options');
+var report = require('./report');
+
 options.process();
 
 var url = options.get('url');
@@ -44,80 +46,6 @@ var elapsedStart;
 var elapsedTime;
 var bytesTransferred = 0;
 var responseTimes = [];
-
-function stats(responseTimes) {
-    responseTimes.sort(function(a, b) { return a - b });
-    var l = responseTimes.length
-    var mean = responseTimes.reduce(function (a, b) { return a + b }) / l;
-
-    var s = 0;
-    responseTimes.forEach(function (val) {
-        s += Math.pow(val - mean, 2);
-    });
-    var variance = s / l;
-    var deviation = Math.sqrt(variance);
-
-
-    var percentile = function(percent) {
-        var t = responseTimes[Math.floor(responseTimes.length*percent)];
-        return t;
-    };
-    var min = responseTimes[0];
-    var max = responseTimes[responseTimes.length-1];
-
-
-    return {
-        variance: variance,
-        mean: mean,
-        deviation: deviation,
-        min: min,
-        max: max,
-        median: percentile(0.5),
-        ninety: percentile(0.9), ninetyFive: percentile(0.95), ninetyNine: percentile(0.99)
-    };
-}
-
-function pad(str, width) {
-    return str + (new Array(width-str.length)).join(" ");
-}
-
-function printReportItem(name, val, padLength) {
-    if (padLength == undefined)
-        padLength = 40;
-    sys.puts(pad(name + ":", padLength) + " " + val);
-}
-
-function printReport(report) {
-    if (!options.get('quiet')) {
-        sys.puts('');
-    }
-    printReportItem('Server Hostname', host);
-    printReportItem('Server Port', port)
-
-    if (requestGenerator == null) {
-        printReportItem('HTTP Method', method)
-        printReportItem('Document Path', path)
-    } else {
-        printReportItem('Request Generator', options.get('requestGeneratorModule'));
-    }
-
-    printReportItem('Concurrency Level', numClients);
-    printReportItem('Number of requests', responseTimes.length);
-    printReportItem('Body bytes transferred', bytesTransferred);
-    printReportItem('Elapsed time (s)', (elapsedTime/1000).toFixed(2));
-    printReportItem('Requests per second', (responseTimes.length/(elapsedTime/1000)).toFixed(2));
-    printReportItem('Median time per request (ms)', report.stats.median.toFixed(2));
-    printReportItem('Mean time per request (ms)', report.stats.mean.toFixed(2));
-    printReportItem('Time per request standard deviation', report.stats.deviation.toFixed(2));
-    
-    sys.puts('');
-    sys.puts('Percentages of requests served within a certain time (ms)');
-    printReportItem("  Min", report.stats.min, 6);
-    printReportItem("  90%", report.stats.ninety, 6);
-    printReportItem("  95%", report.stats.ninetyFive, 6);
-    printReportItem("  99%", report.stats.ninetyNine, 6);
-    printReportItem("  Max", report.stats.max, 6);
-}
 
 function doClientRequests(clientIdCounter) {
     var j = 0;
@@ -152,11 +80,12 @@ function doClientRequests(clientIdCounter) {
                 // display results after we count the body of the last request
                 if (len == numRequests) {
                     elapsedTime = (new Date()) - elapsedStart;
-                    var s = stats(responseTimes);
-                    var report = {
-                        stats: s
+                    var results = {
+                        bytesTransferred: bytesTransferred,
+                        elapsedTime: elapsedTime,
+                        responseTimes: responseTimes
                     };
-                    printReport(report);
+                    report.print(results, options);
                 }
                 // Tee up next request after this one finishes.
                 process.nextTick(doRequest);
