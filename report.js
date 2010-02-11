@@ -77,16 +77,61 @@ exports.print = function(results, options) {
     printItem("  99%", stats.ninetyNine, 6);
     printItem("  Max", stats.max, 6);
 
-/*
     if (options.get('flotChart')) {
         sys.puts('');
-        sys.puts('Generating Flot HTML chart...');
-        for (var i = 10; i <= 100; i += 10) {
-            var pct = i / 100;
-            sys.puts(i/100);
+        sys.print('Generating Flot HTML chart.');
+        var categories = { mean: [], median: [], ninety: [], ninetyFive: [], ninetyNine: [] };
+        var chartData = [];
+        for (cat in categories) {
+            //sys.puts(cat + ": " + categories[cat].length);
+            for (var i = 10; i <= 100; i += 10) {
+                var pct = i / 100;
+                var idx = Math.round(rawResponseTimes.length * pct);
+                var responseTimes = rawResponseTimes.slice(0, idx);
+                var stats = calcStats(responseTimes);
+                categories[cat].push([idx, stats[cat].toFixed(2)]);
+                //sys.print(stats[cat].toFixed(2) + " ");
+            }
+            sys.print('.');
+            //sys.puts('');
+            chartData.push(getFlotObject(cat, categories[cat]));
         }
+        sys.puts('');
+        writeHtmlReport(JSON.stringify(chartData));
     }
-*/
 }
 
+function writeHtmlReport(flotData) {
+    var posix = require("posix");
+    var fileName = 'results-chart-' + new Date().getTime() + ".html";
+    posix.open(
+        fileName,
+        process.O_WRONLY|process.O_CREAT|process.O_APPEND,
+        process.S_IRWXU|process.S_IRWXG|process.S_IROTH
+    ).addCallback(
+        function(fd) {
+            write(posix, fd, "<html>\n<head><title>Response Times over Time</title>\n");
+            write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
+            write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
+            write(posix, fd, '</head>\n<body>\n\n');
+            write(posix, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
+            write(posix, fd, '<script id="source" language="javascript" type="text/javascript">\n');
+            write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0} }); });');
+            write(posix, fd, "\n</script>\n</body>\n</html>\n");
+            posix.close(fd);
+        }
+    );
+    sys.puts("Wrote results to " + fileName);
+}
 
+function write(posix, fd, data) {
+    posix.write(fd, data, null, "utf8").wait();
+}
+
+function getFlotObject(label, data) {
+    return {
+        label: label,
+        data: data,
+        points: {show: true}, lines: {show: true}
+    };
+}
