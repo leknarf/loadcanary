@@ -20,7 +20,7 @@ var testConfig = {
 var switches = [
     [ '-n', '--number NUMBER', 'Number of requests to make. Defaults to 1.' ],
     [ '-c', '--concurrency NUMBER', 'Concurrent number of connections. Defaults to 1.' ],
-    [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default.' ],
+    [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default. (not supported yet)' ],
     [ '-m', '--method STRING', 'HTTP method to use.' ],
     [ '-f', '--flot-chart', 'If set, generate an HTML page with a Flot chart of results.'],
     [ '-r', '--request-generator STRING', 'Path to module that exports getRequest function'],
