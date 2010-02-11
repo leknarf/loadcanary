@@ -116,7 +116,7 @@ function writeHtmlReport(flotData) {
             write(posix, fd, '</head>\n<body>\n\n');
             write(posix, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
             write(posix, fd, '<script id="source" language="javascript" type="text/javascript">\n');
-            write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0} }); });');
+            write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0} }); });');
             write(posix, fd, "\n</script>\n</body>\n</html>\n");
             posix.close(fd);
         }
