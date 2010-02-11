@@ -33,6 +33,9 @@ var report = require('./report');
 options.process();
 
 var url = options.get('url');
+if (!url)
+    options.help();
+
 var method = options.get('method');
 var host = options.get('host');
 var port = options.get('port');
@@ -71,7 +74,7 @@ function doClientRequests(clientIdCounter) {
 
             if (!options.get('quiet')) {
                 if ((len % (numRequests/10)) == 0) {
-                    sys.puts(pad('Completed ' +responseTimes.length+ ' requests', 40) + ' ('+ (len/numRequests*100) + '%)');
+                    sys.puts(report.pad('Completed ' +responseTimes.length+ ' requests', 40) + ' ('+ (len/numRequests*100) + '%)');
                 }
             }
 

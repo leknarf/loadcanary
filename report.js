@@ -35,6 +35,7 @@ function calcStats(responseTimes) {
 function pad(str, width) {
     return str + (new Array(width-str.length)).join(" ");
 }
+exports.pad = pad;
 
 function printItem(name, val, padLength) {
     if (padLength == undefined)
@@ -43,6 +44,8 @@ function printItem(name, val, padLength) {
 }
 
 exports.print = function(results, options) {
+    rawResponseTimes = results.responseTimes.slice(0);
+
     var stats = calcStats(results.responseTimes);
     if (!options.get('quiet')) {
         sys.puts('');
@@ -62,17 +65,28 @@ exports.print = function(results, options) {
     printItem('Body bytes transferred', results.bytesTransferred);
     printItem('Elapsed time (s)', (results.elapsedTime/1000).toFixed(2));
     printItem('Requests per second', (results.responseTimes.length/(results.elapsedTime/1000)).toFixed(2));
-    printItem('Median time per request (ms)', stats.median.toFixed(2));
     printItem('Mean time per request (ms)', stats.mean.toFixed(2));
     printItem('Time per request standard deviation', stats.deviation.toFixed(2));
     
     sys.puts('');
     sys.puts('Percentages of requests served within a certain time (ms)');
     printItem("  Min", stats.min, 6);
+    printItem("  50%", stats.median, 6)
     printItem("  90%", stats.ninety, 6);
     printItem("  95%", stats.ninetyFive, 6);
     printItem("  99%", stats.ninetyNine, 6);
     printItem("  Max", stats.max, 6);
+
+/*
+    if (options.get('flotChart')) {
+        sys.puts('');
+        sys.puts('Generating Flot HTML chart...');
+        for (var i = 10; i <= 100; i += 10) {
+            var pct = i / 100;
+            sys.puts(i/100);
+        }
+    }
+*/
 }
 
 

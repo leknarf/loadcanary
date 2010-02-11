@@ -22,17 +22,17 @@ var switches = [
     [ '-c', '--concurrency NUMBER', 'Concurrent number of connections. Defaults to 1.' ],
     [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default.' ],
     [ '-m', '--method STRING', 'HTTP method to use.' ],
-    [ '-q', '--quiet', 'Supress display of progress count info.'],
+    [ '-f', '--flot-chart', 'If set, generate an HTML page with a Flot chart of results.'],
     [ '-r', '--request-generator STRING', 'Path to module that exports getRequest function'],
+    [ '-q', '--quiet', 'Supress display of progress count info.'],
     [ '-u', '--usage', 'Show usage info' ],
 ];
 
 // Create a new OptionParser.
 var parser = new optparse.OptionParser(switches);
+parser.banner = 'azathoth.js [options] <host>:<port>/<path>';
 parser.on('usage', function() {
-    sys.puts('azathoth.js [options] <host>:<port>/<path>');
-    sys.puts(parser);
-    process.exit();
+    help();
 });
 
 parser.on(2, function (value) {
@@ -44,6 +44,12 @@ parser.on(2, function (value) {
     testConfig.port = Number(testConfig.url.port) || testConfig.port;
     testConfig.path = testConfig.url.pathname || testConfig.path;
 });
+
+parser.on(
+    "flot-chart", function() {
+        testConfig.flotChart = true;
+    }
+);
 
 parser.on(
     "quiet",
@@ -86,3 +92,10 @@ exports.process = function() {
         process.exit();
     }
 };
+
+function help() {
+    sys.puts(parser);
+    process.exit();
+};
+exports.help = help;
+
