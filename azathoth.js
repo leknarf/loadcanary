@@ -55,6 +55,7 @@ function doClientRequests(clientIdCounter) {
 
     //sys.puts("Client " +clientIdCounter+  " reporting in!");
     var connection = http.createClient(port, host);
+
     function doRequest() {
         if (++j > numRequests/numClients) return;
 
@@ -65,6 +66,13 @@ function doClientRequests(clientIdCounter) {
             request = requestGenerator.getRequest(connection);
         }
         var start = (new Date()).getTime();
+
+        if ((options.get('requestData') != null) && (method.search('^(PUT|POST)$') != -1)) {
+            //sys.puts("data is " + options.get('requestData'));
+            request.sendBody(
+                options.get('requestData')
+            );
+        }
 
         request.finish(function(response) {
             var end = (new Date()).getTime();
@@ -95,6 +103,7 @@ function doClientRequests(clientIdCounter) {
             });
         });
     }
+
     process.nextTick(doRequest);
 }
 

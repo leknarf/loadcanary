@@ -22,6 +22,7 @@ var switches = [
     [ '-c', '--concurrency NUMBER', 'Concurrent number of connections. Defaults to 1.' ],
     [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default. (not supported yet)' ],
     [ '-m', '--method STRING', 'HTTP method to use.' ],
+    [ '-d', '--data STRING', 'Data to send along with PUT or POST request.' ],
     [ '-f', '--flot-chart', 'If set, generate an HTML page with a Flot chart of results.'],
     [ '-r', '--request-generator STRING', 'Path to module that exports getRequest function'],
     [ '-q', '--quiet', 'Supress display of progress count info.'],
@@ -55,6 +56,12 @@ parser.on(
     "quiet",
     function() {
         testConfig.quiet = true;
+    }
+);
+
+parser.on(
+    "data", function(opt, value) {
+        testConfig.requestData = value;
     }
 );
 

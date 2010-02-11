@@ -125,7 +125,7 @@ function writeHtmlReport(flotData) {
 }
 
 function write(posix, fd, data) {
-    posix.write(fd, data, null, "utf8").wait();
+    posix.write(fd, data, null, "ascii").wait();
 }
 
 function getFlotObject(label, data) {
