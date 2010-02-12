@@ -1,17 +1,17 @@
 NAME
 ----
 
-    azathoth - HTTP benchmark and load generator tool
+    nodeload - HTTP benchmark and load generator tool
 
 SYNOPSIS
 --------
 
-    azathoth.js <options> http://example.com:8080/
+    nodeload.js [options] <host>:<port>[<path>]
 
 DESCRIPTION
 -----------
 
-    azathoth is for generating lots of HTTP traffic. By utilizing Node.js's
+    nodeload is for generating lots of HTTP traffic. By utilizing Node.js's
     powerful asynchronous abilities it's possible to create an enormous number
     of requests.
 
@@ -27,25 +27,29 @@ DESCRIPTION
 OPTIONS
 -------
     
-    -c Number of concurrent connections to use. Each client will make a
-       number of requests equal to the total number of requests divided by this number.
-
-    -n Total number of requests to make.
-
-    -m HTTP method to use (default: GET)
-
+      -n, --number NUMBER              Number of requests to make. Defaults to value of --concurrency unless a time limit is specified.
+      -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
+      -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
+      -m, --method STRING              HTTP method to use.
+      -d, --data STRING                Data to send along with PUT or POST request.
+      -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
+      -r, --request-generator STRING   Path to module that exports getRequest function
+      -q, --quiet                      Supress display of progress count info.
+      -u, --usage                      Show usage info
 
 ENVIRONMENT
 -----------
 
-    azathoth requires node to be installed somewhere on your path.
+    nodeload requires node to be installed somewhere on your path.
 
 AUTHOR
 ------
 
     Orlando Vazquez <ovazquez@gmail.com>
+    Benjamin Schmaus <benjamin.schmaus@gmail.com>
 
 SEE ALSO
 --------
 
     ab(1)
+    Flot - http://code.google.com/p/flot/
