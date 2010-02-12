@@ -42,8 +42,16 @@ ENVIRONMENT
 
     nodeload requires node to be installed somewhere on your path.
 
-AUTHOR
-------
+QUICKSTART
+----------
+1. Install node.js.
+2. Clone nodeload.
+3. cd into nodeload working copy.
+4. git submodule update --init
+5. Start testing!
+
+AUTHORS
+-------
 
     Orlando Vazquez <ovazquez@gmail.com>
     Benjamin Schmaus <benjamin.schmaus@gmail.com>
