@@ -1,0 +1,32 @@
+<html>
+<head><title>Response Times over Time</title>
+<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>
+</head>
+<body>
+<h1>Test Results from Fri Feb 12 2010 16:48:44 GMT-0500 (EST)</h1>
+<pre>Server Hostname:                        localhost
+Server Port:                            8000
+Request Generator:                      ./examples/test-generator.js
+Concurrency Level:                      5
+Number of requests:                     25
+Body bytes transferred:                 50
+Elapsed time (s):                       0.04
+Requests per second:                    641.03
+Mean time per request (ms):             6.40
+Time per request standard deviation:    3.31
+
+Percentages of requests served within a certain time (ms)
+  Min: 1
+  50%: 6
+  90%: 11
+  95%: 11
+  99%: 11
+  Max: 11
+</pre><h2>x = number of requests, y = response times (ms)</h2>
+<div id="placeholder" style="width:800px;height:400px;"></div>
+<script id="source" language="javascript" type="text/javascript">
+$(function () { $.plot($("#placeholder"), [{"label":"mean","data":[[3,"9.33"],[5,"10.00"],[8,"9.00"],[10,"7.50"],[13,"7.46"],[15,"7.13"],[18,"6.78"],[20,"6.65"],[23,"6.57"],[25,"6.40"]],"points":{"show":true},"lines":{"show":true}},{"label":"median","data":[[3,"11.00"],[5,"11.00"],[8,"11.00"],[10,"10.00"],[13,"9.00"],[15,"7.00"],[18,"6.00"],[20,"6.00"],[23,"6.00"],[25,"6.00"]],"points":{"show":true},"lines":{"show":true}},{"label":"ninety","data":[[3,"11.00"],[5,"11.00"],[8,"11.00"],[10,"11.00"],[13,"11.00"],[15,"11.00"],[18,"11.00"],[20,"11.00"],[23,"11.00"],[25,"11.00"]],"points":{"show":true},"lines":{"show":true}},{"label":"ninetyFive","data":[[3,"11.00"],[5,"11.00"],[8,"11.00"],[10,"11.00"],[13,"11.00"],[15,"11.00"],[18,"11.00"],[20,"11.00"],[23,"11.00"],[25,"11.00"]],"points":{"show":true},"lines":{"show":true}},{"label":"ninetyNine","data":[[3,"11.00"],[5,"11.00"],[8,"11.00"],[10,"11.00"],[13,"11.00"],[15,"11.00"],[18,"11.00"],[20,"11.00"],[23,"11.00"],[25,"11.00"]],"points":{"show":true},"lines":{"show":true}}], { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });
+</script>
+</body>
+</html>
