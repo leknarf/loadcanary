@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- Copyright (c) 2010 Orlando Vazquez
+ Copyright (c) 2010 Orlando Vazquez, Benjamin Schmaus
 
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation
@@ -62,7 +62,21 @@ function initClientRequest(clientIdCounter) {
     var connection = http.createClient(port, host);
 
     function doRequest() {
-        requestCounter++;
+        var done = false;
+        if ((timeLimit != null) && (new Date() - elapsedStart) >= timeLimit) {
+            finishedClients++;
+            done = true;
+            //sys.debug("times up! " + finishedClients);
+        }
+        if ((numRequests != null) && (++requestCounter > numRequests/numClients)) {
+            finishedClients++;
+            done = true;
+            //sys.debug("requests up! " + finishedClients);
+        }
+        if (done) {
+            doResults();
+            return;
+        }
         var request;
         if (requestGenerator == null) {
             request = connection.request(method, path, { 'host': host });
@@ -90,23 +104,8 @@ function initClientRequest(clientIdCounter) {
 
             response.addListener('body', function(body) {
                 bytesTransferred += body.length;
-                var done = false;
-                if ((timeLimit != null) && (new Date() - elapsedStart) >= timeLimit) {
-                    finishedClients++;
-                    done = true;
-                    //sys.debug("times up! " + finishedClients);
-                }
-                if ((numRequests != null) && (requestCounter > numRequests/numClients)) {
-                    finishedClients++;
-                    done = true;
-                    //sys.debug("requests up! " + finishedClients);
-                }
-                if (done) {
-                    doResults();
-                } else {
-                    // Tee up next request after this one finishes.
-                    process.nextTick(doRequest);
-                }
+                // Tee up next request after this one finishes.
+                process.nextTick(doRequest);
             });
         });
     }

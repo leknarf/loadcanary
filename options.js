@@ -94,7 +94,7 @@ exports.get = function(option) {
 };
 exports.process = function() {
     parser.parse(process.argv);
-    if (testConfig.timeLimit == null) {
+     if ((testConfig.timeLimit == null) && (testConfig.numRequests == null)) {
         testConfig.numRequests = testConfig.numClients;
     }
 };
