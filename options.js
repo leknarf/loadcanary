@@ -11,16 +11,16 @@ var testConfig = {
     host: '',
     port: 80,
     numClients: 1,
-    numRequests: 1,
+    numRequests: null,
     timeLimit: null,
     path: '/',
     reqPerClient: this.numClients / this.numRequests,
     requestGenerator: null
 };
 var switches = [
-    [ '-n', '--number NUMBER', 'Number of requests to make. Defaults to 1.' ],
+    [ '-n', '--number NUMBER', 'Number of requests to make. Defaults to value of --concurrency unless a time limit is specified.' ],
     [ '-c', '--concurrency NUMBER', 'Concurrent number of connections. Defaults to 1.' ],
-    [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default. (not supported yet)' ],
+    [ '-t', '--time-limit NUMBER', 'Number of seconds to spend running test. No timelimit by default.' ],
     [ '-m', '--method STRING', 'HTTP method to use.' ],
     [ '-d', '--data STRING', 'Data to send along with PUT or POST request.' ],
     [ '-f', '--flot-chart', 'If set, generate an HTML page with a Flot chart of results.'],
@@ -81,7 +81,7 @@ parser.on('number', function(opt, value) {
 
 parser.on(
     'time-limit', function(opt, value) {
-        testConfig.timeLimit = Number(value);
+        testConfig.timeLimit = Number(value*1000);
     }
 );
 
@@ -94,9 +94,8 @@ exports.get = function(option) {
 };
 exports.process = function() {
     parser.parse(process.argv);
-    if (testConfig.numRequests < testConfig.numClients) {
-        sys.puts("Error: number of requests needs to be >= number of clients.");
-        process.exit();
+    if (testConfig.timeLimit == null) {
+        testConfig.numRequests = testConfig.numClients;
     }
 };
 

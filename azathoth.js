@@ -41,6 +41,7 @@ var host = options.get('host');
 var port = options.get('port');
 var numClients = options.get('numClients');
 var numRequests = options.get('numRequests');
+var timeLimit = options.get('timeLimit');
 var path = options.get('path');
 var reqPerClient = options.get('reqPerClient');
 var requestGenerator = options.get('requestGenerator');
@@ -50,15 +51,18 @@ var elapsedTime;
 var bytesTransferred = 0;
 var responseTimes = [];
 
-function doClientRequests(clientIdCounter) {
-    var j = 0;
+// Keeps track of clients that are done working.  When all are finished
+// results are generated.
+var finishedClients = 0;
+
+function initClientRequest(clientIdCounter) {
+    var requestCounter = 0;
 
     //sys.puts("Client " +clientIdCounter+  " reporting in!");
     var connection = http.createClient(port, host);
 
     function doRequest() {
-        if (++j > numRequests/numClients) return;
-
+        requestCounter++;
         var request;
         if (requestGenerator == null) {
             request = connection.request(method, path, { 'host': host });
@@ -81,25 +85,28 @@ function doClientRequests(clientIdCounter) {
             var len = responseTimes.length;
 
             if (!options.get('quiet')) {
-                if ((len % (numRequests/10)) == 0) {
-                    sys.puts(report.pad('Completed ' +responseTimes.length+ ' requests', 40) + ' ('+ (len/numRequests*100) + '%)');
-                }
+                report.progress(len, numRequests);
             }
 
             response.addListener('body', function(body) {
                 bytesTransferred += body.length;
-                // display results after we count the body of the last request
-                if (len == numRequests) {
-                    elapsedTime = (new Date()) - elapsedStart;
-                    var results = {
-                        bytesTransferred: bytesTransferred,
-                        elapsedTime: elapsedTime,
-                        responseTimes: responseTimes
-                    };
-                    report.print(results, options);
+                var done = false;
+                if ((timeLimit != null) && (new Date() - elapsedStart) >= timeLimit) {
+                    finishedClients++;
+                    done = true;
+                    //sys.debug("times up! " + finishedClients);
                 }
-                // Tee up next request after this one finishes.
-                process.nextTick(doRequest);
+                if ((numRequests != null) && (requestCounter > numRequests/numClients)) {
+                    finishedClients++;
+                    done = true;
+                    //sys.debug("requests up! " + finishedClients);
+                }
+                if (done) {
+                    doResults();
+                } else {
+                    // Tee up next request after this one finishes.
+                    process.nextTick(doRequest);
+                }
             });
         });
     }
@@ -107,10 +114,23 @@ function doClientRequests(clientIdCounter) {
     process.nextTick(doRequest);
 }
 
+function doResults() {
+    // display results when the last client has finished.
+    if (finishedClients == numClients) {
+        elapsedTime = (new Date()) - elapsedStart;
+        var results = {
+            bytesTransferred: bytesTransferred,
+            elapsedTime: elapsedTime,
+            responseTimes: responseTimes
+        };
+        report.print(results, options);
+    }
+}
+
 function main() {
     elapsedStart = new Date();
     for (var clientIdCounter = 0; clientIdCounter < numClients; clientIdCounter++) {
-        doClientRequests(clientIdCounter);
+        initClientRequest(clientIdCounter);
     }
 }
 

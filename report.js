@@ -37,7 +37,13 @@ function calcStats(responseTimes) {
 function pad(str, width) {
     return str + (new Array(width-str.length)).join(" ");
 }
-exports.pad = pad;
+
+exports.progress = function(requestsSoFar, targetNumRequests) {
+    if (((requestsSoFar % (targetNumRequests/10)) == 0) || ((requestsSoFar % 150) == 0)) {
+        sys.puts(pad('Completed ' +requestsSoFar+ ' requests', 40));
+    }
+
+}
 
 function printItem(name, val, padLength) {
     if (padLength == undefined)
