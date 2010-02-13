@@ -47,7 +47,9 @@ OPTIONS
 ENVIRONMENT
 -----------
 
-    nodeload requires node to be installed somewhere on your path.
+    nodeload requires node to be installed somewhere on your path. You should
+    a version of node that uses the fs module instead of posix (posix was
+    renamed to fs on 2010/02/12).
 
 QUICKSTART
 ----------
