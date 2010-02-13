@@ -27,13 +27,20 @@ DESCRIPTION
 OPTIONS
 -------
     
-      -n, --number NUMBER              Number of requests to make. Defaults to value of --concurrency unless a time limit is specified.
-      -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
-      -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
+      -n, --number NUMBER              Number of requests to make. Defaults to
+                                       value of --concurrency unless a time
+                                       limit is specified.
+      -c, --concurrency NUMBER         Concurrent number of connections.
+                                       Defaults to 1.
+      -t, --time-limit NUMBER          Number of seconds to spend running test.
+                                       No timelimit by default.
       -m, --method STRING              HTTP method to use.
-      -d, --data STRING                Data to send along with PUT or POST request.
-      -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
-      -r, --request-generator STRING   Path to module that exports getRequest function
+      -d, --data STRING                Data to send along with PUT or POST
+                                       request.
+      -f, --flot-chart                 If set, generate an HTML page with a
+                                       Flot chart of results.
+      -r, --request-generator STRING   Path to module that exports getRequest
+                                       function
       -q, --quiet                      Supress display of progress count info.
       -u, --usage                      Show usage info
 
@@ -60,4 +67,3 @@ SEE ALSO
 --------
 
     ab(1)
-    Flot - http://code.google.com/p/flot/
