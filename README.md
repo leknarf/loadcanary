@@ -40,7 +40,8 @@ OPTIONS
       -f, --flot-chart                 If set, generate an HTML page with a
                                        Flot chart of results.
       -r, --request-generator STRING   Path to module that exports getRequest
-                                       function
+                                       function, which should return a request
+                                       using the given HTTP client.
       -q, --quiet                      Supress display of progress count info.
       -u, --usage                      Show usage info
 
