@@ -140,32 +140,32 @@ exports.print = function(results, options) {
 }
 
 function writeHtmlReport(flotData) {
-    var posix = require("posix");
+    var fs = require("fs");
     var now = new Date();
     var fileName = 'results-chart-' + now.getTime() + ".html";
-    posix.open(
+    fs.open(
         fileName,
         process.O_WRONLY|process.O_CREAT|process.O_APPEND,
         process.S_IRWXU|process.S_IRWXG|process.S_IROTH
     ).addCallback(
         function(fd) {
-            write(posix, fd, "<html>\n<head><title>Response Times over Time</title>\n");
-            write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
-            write(posix, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
-            write(posix, fd, '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>');
-            write(posix, fd, '<h2>x = number of requests, y = response times (ms)</h2>\n');
-            write(posix, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
-            write(posix, fd, '<script id="source" language="javascript" type="text/javascript">\n');
-            write(posix, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });');
-            write(posix, fd, "\n</script>\n</body>\n</html>\n");
-            posix.close(fd);
+            write(fs, fd, "<html>\n<head><title>Response Times over Time</title>\n");
+            write(fs, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
+            write(fs, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
+            write(fs, fd, '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>');
+            write(fs, fd, '<h2>x = number of requests, y = response times (ms)</h2>\n');
+            write(fs, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
+            write(fs, fd, '<script id="source" language="javascript" type="text/javascript">\n');
+            write(fs, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });');
+            write(fs, fd, "\n</script>\n</body>\n</html>\n");
+            fs.close(fd);
         }
     );
     sys.puts("Wrote results to " + fileName);
 }
 
-function write(posix, fd, data) {
-    posix.write(fd, data, null, "ascii").wait();
+function write(fs, fd, data) {
+    fs.write(fd, data, null, "ascii").wait();
 }
 
 function getFlotObject(label, data) {
