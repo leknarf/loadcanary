@@ -48,7 +48,7 @@ ENVIRONMENT
 -----------
 
     nodeload requires node to be installed somewhere on your path. You should
-    a version of node that uses the fs module instead of posix (posix was
+    have a version of node that uses the fs module instead of posix (posix was
     renamed to fs on 2010/02/12).
 
 QUICKSTART
@@ -58,6 +58,17 @@ QUICKSTART
 3. cd into nodeload working copy.
 4. git submodule update --init
 5. Start testing!
+
+nodeload contains a toy server that you can use for a quick demo.
+Try the following:
+
+[~/code/nodeload] node examples/test-server.js &
+[1] 2756
+[~/code/nodeload] Server running at http://127.0.0.1:8000/
+[~/code/nodeload] ./nodeload.js -f -c 10 -n 200 -r ./examples/test-generator.js localhost:8000
+
+You should now see some test output in your console.  The generated HTML
+report contains a graphical chart of test results.
 
 AUTHORS
 -------
