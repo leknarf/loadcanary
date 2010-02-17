@@ -11,7 +11,7 @@ var id = 0;
 function Schedule(fun) {
     this.id = id++;
     this.fun = fun;
-    this.conditions = { rps: null, times: null, ms: null };
+    this.conditions = { rps: null, times: null, ms: null, delay: null };
     this.provideClient = { port: null, host: null };
     this.monitored = true;
 }
@@ -30,6 +30,9 @@ Schedule.prototype = {
             ms: function() {
                 schedule.conditions.ms = number;
                 return schedule;
+            },
+            msDelay: function() {
+                schedule.conditions.delay = number;
             }
         }
     },
@@ -37,7 +40,7 @@ Schedule.prototype = {
         this.concurrency = number;
         return this;
     },
-    withProvidedClients: function(port, host) {
+    withClients: function(port, host) {
         this.provideClient = { port: port, host: host };
         return this;
     },
@@ -46,7 +49,7 @@ Schedule.prototype = {
         var other = new Schedule();
         other.id = id++;
         other.fun = schedule.fun;
-        other.conditions = { rps: schedule.conditions.rps, times: schedule.conditions.times, ms: schedule.conditions.ms };
+        other.conditions = { rps: schedule.conditions.rps, times: schedule.conditions.times, ms: schedule.conditions.ms, delay: schedule.conditions.delay };
         other.concurrency = schedule.concurrency;
         other.provideClient = { port: schedule.provideClient.port, host: schedule.provideClient.host };
         other.monitored = schedule.monitored;
@@ -110,8 +113,14 @@ function startSchedule(s) {
     if (s.conditions.times != null) {
         s.loop.addCondition(maxExecutions(s.conditions.times));
     }
+    if (s.conditions.delay != null) {
+        s.loop.setDelay(s.conditions.delay);
+    }
     if (s.conditions.ms != null) {
-        s.loop.addCondition(timeLimit(s.conditions.ms));
+        var limit = s.conditions.ms;
+        if (s.conditions.delay != null)
+            limit += s.conditions.delay;
+        s.loop.addCondition(timeLimit(limit));
     }
     if (s.provideClient != null) {
         s.loop.client = http.createClient(s.provideClient.port, s.provideClient.host);
@@ -154,6 +163,7 @@ function Loop(fun) {
     this.fun = fun;
     this.conditions = [];
     this.stopped = true;
+    this.delay = 0;
 }
 Loop.prototype = {
     addCondition: function(condition) {
@@ -171,6 +181,9 @@ Loop.prototype = {
         }
         return true;
     },
+    setDelay: function(delayMs) {
+        this.delay = delayMs;
+    },
     loop: function() {
         if (this.checkCondition()) {
             var loop = this;
@@ -183,7 +196,12 @@ Loop.prototype = {
     start: function(finishFun) {
         this.finishFun = finishFun;
         this.stopped = false;
-        this.loop();
+        if (this.delay > 0) {
+            var loop = this;
+            setTimeout(function() { loop.loop() }, this.delay);
+        } else {
+            this.loop();
+        }
     },
     stop: function() {
         this.stopped = true;
