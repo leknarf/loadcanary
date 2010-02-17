@@ -30,6 +30,8 @@ var sys = require('sys'),
 
 var options = require('./options');
 var report = require('./report');
+var stats = require('./stats');
+
 
 options.process();
 
@@ -44,69 +46,75 @@ var numClients = options.get('numClients');
 var numRequests = options.get('numRequests');
 var timeLimit = options.get('timeLimit');
 var path = options.get('path');
-var reqPerClient = options.get('reqPerClient');
+var requestData = options.get('requestData');
 var requestGenerator = options.get('requestGenerator');
+var quiet = options.get('quiet');
+var reportInterval = options.get('reportInterval');
+var requestsPerClient = numRequests/numClients;
+var targetRps = options.get('targetRps');
+var clientTimeout = (1 / (targetRps / numClients)) * 1000;
 
-var elapsedStart;
-var elapsedTime;
 var bytesTransferred = 0;
-var responseTimes = [];
+var intervalStats = new stats.Histogram();
+var cumulativeStats = new stats.Histogram();
 
 // Keeps track of clients that are done working.  When all are finished
 // results are generated.
 var finishedClients = 0;
 
+var reportId;
+
 function initClientRequest(clientIdCounter) {
     var requestCounter = 0;
-
-    //sys.puts("Client " +clientIdCounter+  " reporting in!");
     var connection = http.createClient(port, host);
 
     function doRequest() {
-        var done = false;
-        if ((timeLimit != null) && (new Date() - elapsedStart) >= timeLimit) {
+        if (((timeLimit != null) && (new Date() - cumulativeStats.start) >= timeLimit) || 
+                ((numRequests != null) && (++requestCounter > requestsPerClient))) {
             finishedClients++;
-            done = true;
-            //sys.debug("times up! " + finishedClients);
-        }
-        if ((numRequests != null) && (++requestCounter > numRequests/numClients)) {
-            finishedClients++;
-            done = true;
-            //sys.debug("requests up! " + finishedClients);
-        }
-        if (done) {
-            doResults();
+            finish();
             return;
         }
+        
+        var finished = false;
+        var lagging = false;
+        if (targetRps != null) {
+            var rateLimitTimeoutId = setTimeout(function() { 
+                if (!finished) {
+                    lagging = true; 
+                } else {
+                    process.nextTick(doRequest); 
+                }
+            }, clientTimeout);
+        } else {
+            lagging = true;
+        }
+
+        var start = (new Date()).getTime();
         var request;
         if (requestGenerator == null) {
             request = connection.request(method, path, { 'host': host });
+
+            if ((requestData != null) && (method.search('^(PUT|POST)$') != -1)) {
+                request.sendBody(requestData);
+            }
         } else {
             request = requestGenerator.getRequest(connection);
         }
-        var start = (new Date()).getTime();
-
-        if ((options.get('requestData') != null) && (method.search('^(PUT|POST)$') != -1)) {
-            //sys.puts("data is " + options.get('requestData'));
-            request.sendBody(
-                options.get('requestData')
-            );
-        }
 
         request.finish(function(response) {
-            var end = (new Date()).getTime();
+            var end = new Date();
             var	delta = end - start;
-            responseTimes.push(delta);
-            var len = responseTimes.length;
-
-            if (!options.get('quiet')) {
-                report.progress(len, numRequests);
-            }
-
+            cumulativeStats.put(delta);
+            intervalStats.put(delta);
+            finished = true;
+            
             response.addListener('body', function(body) {
                 bytesTransferred += body.length;
                 // Tee up next request after this one finishes.
-                process.nextTick(doRequest);
+                if (lagging == true) {
+                    process.nextTick(doRequest);
+                }
             });
         });
     }
@@ -114,24 +122,35 @@ function initClientRequest(clientIdCounter) {
     process.nextTick(doRequest);
 }
 
-function doResults() {
+function finish() {
     // display results when the last client has finished.
     if (finishedClients == numClients) {
-        elapsedTime = (new Date()) - elapsedStart;
+        clearInterval(reportId);
+        
         var results = {
             bytesTransferred: bytesTransferred,
-            elapsedTime: elapsedTime,
-            responseTimes: responseTimes
+            stats: cumulativeStats
         };
-        report.print(results, options);
+        report.finish(results, options);
     }
 }
 
+var doReport = function() {
+    report.progress({intervalStats: intervalStats, cumulativeStats: cumulativeStats});
+    if (intervalStats.length > 0)
+        intervalStats = new stats.Histogram();
+}
+
 function main() {
-    elapsedStart = new Date();
+
+    if (quiet)
+        report.setEcho(false);
+
     for (var clientIdCounter = 0; clientIdCounter < numClients; clientIdCounter++) {
         initClientRequest(clientIdCounter);
     }
+    
+    reportId = setInterval(doReport, reportInterval * 1000);
 }
 
 main();
