@@ -26,69 +26,78 @@
 
 var sys = require('sys');
 
+var echo = true;
+var now = new Date().getTime();
+var lastReport = now;
+var reportName = 'results-chart-' + now + ".html";
+var reportData = { "req/s": [[now,0]], average: [[now,0]], median: [[now,0]], "95%": [[now,0]], "99%": [[now,0]] };
 var reportText = "";
-
-function calcStats(responseTimes) {
-    responseTimes.sort(function(a, b) { return a - b });
-    var l = responseTimes.length
-    var mean = responseTimes.reduce(function (a, b) { return a + b }) / l;
-
-    var s = 0;
-    responseTimes.forEach(function (val) {
-        s += Math.pow(val - mean, 2);
-    });
-    var variance = s / l;
-    var deviation = Math.sqrt(variance);
-
-
-    var percentile = function(percent) {
-        var t = responseTimes[Math.floor(responseTimes.length*percent)];
-        return t;
-    };
-    var min = responseTimes[0];
-    var max = responseTimes[responseTimes.length-1];
-
-
-    return {
-        variance: variance,
-        mean: mean,
-        deviation: deviation,
-        min: min,
-        max: max,
-        median: percentile(0.5),
-        ninety: percentile(0.9), ninetyFive: percentile(0.95), ninetyNine: percentile(0.99)
-    };
-}
 
 function pad(str, width) {
     return str + (new Array(width-str.length)).join(" ");
 }
 
-exports.progress = function(requestsSoFar, targetNumRequests) {
-    if (((requestsSoFar % (targetNumRequests/10)) == 0) || ((requestsSoFar % 150) == 0)) {
-        sys.puts(pad('Completed ' +requestsSoFar+ ' requests', 40));
+function puts(s) {
+    if (echo) {
+        sys.puts(s);
     }
-
 }
 
 function printItem(name, val, padLength) {
     if (padLength == undefined)
         padLength = 40;
 
-    var reportData = pad(name + ":", padLength) + " " + val;
-    sys.puts(reportData);
-    reportText += reportData + "\n";
+    var item = pad(name + ":", padLength) + " " + val;
+    puts(item);
+    reportText += item + "\n";
 }
 
-exports.print = function(results, options) {
-    rawResponseTimes = results.responseTimes.slice(0);
-
-    var stats = calcStats(results.responseTimes);
-    if (!options.get('quiet')) {
-        sys.puts('');
+function addData(time, data) {
+    for (category in data) {
+        if (category in reportData) {
+            reportData[category].push([time.getTime(), data[category]]);
+        }
     }
-    printItem('Server Hostname', options.get('host'));
-    printItem('Server Port', options.get('port'))
+}
+
+exports.setEcho = function(echoOn) {
+    echo = echoOn;
+}
+
+exports.progress = function(status) {
+
+    var now = new Date();
+    var summary;
+    
+    if (status.intervalStats.length > 0) {
+        summary = {
+            ts: now,
+            ttlReqs: status.cumulativeStats.length,
+            reqs: status.intervalStats.length,
+            "req/s": (status.intervalStats.length/(now-lastReport)*1000).toFixed(1),
+            min: status.intervalStats.min,
+            average: status.intervalStats.mean().toFixed(1),
+            median: status.intervalStats.percentile(.5),
+            "95%": status.intervalStats.percentile(.95),
+            "99%": status.intervalStats.percentile(.99),
+            max: status.intervalStats.max
+        };
+    } else {
+        summary = { ts: now, ttlReqs: status.cumulativeStats.length, reqs: 0, "req/s": 0, min: 0, average: 0, median: 0, "95%": 0, "99%": 0, max: 0 };
+    }
+
+    lastReport = now;
+    addData(now, summary);
+    puts(JSON.stringify(summary));
+    writeHtmlReport(reportName, "", reportData);
+}
+
+exports.finish = function(results, options) {
+
+    var elapsedSeconds = ((new Date()) - results.stats.start)/1000;
+
+    puts('');
+    printItem('Server', options.get('host') + ":" + options.get('port'));
 
     if (options.get('requestGeneratorModule') == null) {
         printItem('HTTP Method', options.get('method'))
@@ -98,74 +107,67 @@ exports.print = function(results, options) {
     }
 
     printItem('Concurrency Level', options.get('numClients'));
-    printItem('Number of requests', results.responseTimes.length);
+    printItem('Number of requests', results.stats.length);
     printItem('Body bytes transferred', results.bytesTransferred);
-    printItem('Elapsed time (s)', (results.elapsedTime/1000).toFixed(2));
-    printItem('Requests per second', (results.responseTimes.length/(results.elapsedTime/1000)).toFixed(2));
-    printItem('Mean time per request (ms)', stats.mean.toFixed(2));
-    printItem('Time per request standard deviation', stats.deviation.toFixed(2));
+    printItem('Elapsed time (s)', elapsedSeconds.toFixed(2));
+    printItem('Requests per second', (results.stats.length/elapsedSeconds).toFixed(2));
+    printItem('Mean time per request (ms)', results.stats.mean().toFixed(2));
+    printItem('Time per request standard deviation', results.stats.stddev().toFixed(2));
     
     var tmp = '\nPercentages of requests served within a certain time (ms)';
-    sys.puts(tmp);
+    puts(tmp);
     reportText += tmp + '\n';
-    printItem("  Min", stats.min, 6);
-    printItem("  50%", stats.median, 6)
-    printItem("  90%", stats.ninety, 6);
-    printItem("  95%", stats.ninetyFive, 6);
-    printItem("  99%", stats.ninetyNine, 6);
-    printItem("  Max", stats.max, 6);
-
-    if (options.get('flotChart')) {
-        sys.puts('');
-        sys.print('Generating Flot HTML chart.');
-        var categories = { mean: [], median: [], ninety: [], ninetyFive: [], ninetyNine: [] };
-        var chartData = [];
-        for (cat in categories) {
-            //sys.puts(cat + ": " + categories[cat].length);
-            for (var i = 10; i <= 100; i += 10) {
-                var pct = i / 100;
-                var idx = Math.ceil(rawResponseTimes.length * pct);
-                var responseTimes = rawResponseTimes.slice(0, idx);
-                var stats = calcStats(responseTimes);
-                categories[cat].push([idx, stats[cat].toFixed(2)]);
-                //sys.print(stats[cat].toFixed(2) + " ");
-            }
-            sys.print('.');
-            //sys.puts('');
-            chartData.push(getFlotObject(cat, categories[cat]));
-        }
-        sys.puts('');
-        writeHtmlReport(JSON.stringify(chartData));
-    }
+    printItem("  Min", results.stats.min, 6);
+    printItem("  Avg", results.stats.mean().toFixed(1), 6);
+    printItem("  50%", results.stats.percentile(.5), 6)
+    printItem("  95%", results.stats.percentile(.95), 6)
+    printItem("  99%", results.stats.percentile(.99), 6)
+    printItem("  Max", results.stats.max, 6);
+    
+    writeHtmlReport(reportName, reportText, reportData);
 }
 
-function writeHtmlReport(flotData) {
+function writeHtmlReport(fileName, reportText, reportData) {
     var fs = require("fs");
     var now = new Date();
-    var fileName = 'results-chart-' + now.getTime() + ".html";
+    var latencyData = { average: reportData.average, median: reportData.median, "95%": reportData["95%"], "99%": reportData["99%"] };
+    var latencyChart = JSON.stringify(getFlotChart(latencyData));
+    var rpsData = { "req/s": reportData["req/s"] };
+    var rpsChart = JSON.stringify(getFlotChart(rpsData));
     fs.open(
         fileName,
-        process.O_WRONLY|process.O_CREAT|process.O_APPEND,
+        process.O_WRONLY|process.O_CREAT,
         process.S_IRWXU|process.S_IRWXG|process.S_IROTH
-    ).addCallback(
-        function(fd) {
-            write(fs, fd, "<html>\n<head><title>Response Times over Time</title>\n");
-            write(fs, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n');
-            write(fs, fd, '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n');
-            write(fs, fd, '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>');
-            write(fs, fd, '<h2>x = number of requests, y = response times (ms)</h2>\n');
-            write(fs, fd, '<div id="placeholder" style="width:800px;height:400px;"></div>\n');
-            write(fs, fd, '<script id="source" language="javascript" type="text/javascript">\n');
-            write(fs, fd, '$(function () { $.plot($("#placeholder"), ' + flotData + ', { xaxis: { min: 0}, yaxis: {min: 0}, legend: {position: "sw", backgroundOpacity: 0} }); });');
-            write(fs, fd, "\n</script>\n</body>\n</html>\n");
-            fs.close(fd);
-        }
-    );
-    sys.puts("Wrote results to " + fileName);
+    ).addCallback(function(fd) {
+        fs.write(fd, 
+            "<html><head><title>nodeload results: " + now + "</title>\n" +
+            '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n' +
+            '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n' +
+            '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>' +
+            '<h2>Latency (ms) vs. Time</h2>\n' +
+            '<div id="latency" style="width:800px;height:400px;"></div>\n' +
+            '<h2>Requests Per Second vs. Time</h2>\n' +
+            '<div id="rps" style="width:800px;height:400px;"></div>\n' +
+            '<script id="latencyData" language="javascript" type="text/javascript">\n' +
+            '$(function () { $.plot($("#latency"), ' + latencyChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
+            "</script>\n" +
+            '<script id="rpsData" language="javascript" type="text/javascript">\n' +
+            '$(function () { $.plot($("#rps"), ' + rpsChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
+            "</script>\n" +
+            "</body></html>",
+            null, "ascii").addCallback(function(bytes) {
+                fs.close(fd);
+            });
+    });
 }
 
-function write(fs, fd, data) {
-    fs.write(fd, data, null, "ascii").wait();
+function getFlotChart(data) {
+    var chart = [];
+    for (category in data) {
+        var samples = sample(data[category], 80);
+        chart.push(getFlotObject(category, samples));
+    }
+    return chart;
 }
 
 function getFlotObject(label, data) {
@@ -174,4 +176,18 @@ function getFlotObject(label, data) {
         data: data,
         points: {show: true}, lines: {show: true}
     };
+}
+
+function sample(data, points) {
+    if (data.length <= points)
+        return data;
+    
+    var samples = [];
+    for (var i = 0; i < data.length; i += Math.ceil(data.length / points)) {
+        samples.push(data[i]);
+    }
+    if (data.length % points != 0) {
+        samples.push(data[data.length-1]);
+    }
+    return samples;
 }
