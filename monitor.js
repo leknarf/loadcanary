@@ -1,5 +1,6 @@
 var sys = require('sys');
 var stats = require('./stats');
+var httpReport = require('./httpreport');
 
 function monitorLatencies(latencies, fun) {
     return function(loopFun, client) {
@@ -60,14 +61,18 @@ function monitorConcurrency(concurrency, fun) {
     }
 }
 
-function defaultProgressFun(stats) {
-    var out = '{"ts": "' + JSON.stringify(new Date()) + '"';
+function defaultProgressReport(stats) {
+    var out = '{"ts": ' + JSON.stringify(new Date());
     for (i in stats) {
-        out += ', "s' + i + '": {'
+        var summary = stats[i].interval.summary();
+        out += ', "' + stats[i].name + '": '
         if (stats[i].interval.length > 0) {
-            out += stats[i].interval.summary();
+            out += JSON.stringify(summary);
         }
-        out += "}";
+        if (httpReport.httpReport.charts[stats[i].name] != null) {
+            httpReport.httpReport.charts[stats[i].name].put(summary);
+        }
+        stats[i].next();
     }
     out += "}";
     sys.puts(out);
@@ -75,15 +80,12 @@ function defaultProgressFun(stats) {
 
 function progressReport(stats, progressFun) {
     if (progressFun == null)
-        progressFun = defaultProgressFun;
+        progressFun = defaultProgressReport;
     if (stats.length == null || stats.length == 0)
         stats = [stats];
 
     return function(loopFun) {
         progressFun(stats);
-        for (i in stats) {
-            stats[i].next();
-        }
         loopFun();
     }
 }
@@ -93,3 +95,4 @@ exports.monitorResponseCodes = monitorResponseCodes;
 exports.monitorByteReceived = monitorByteReceived;
 exports.monitorConcurrency = monitorConcurrency;
 exports.progressReport = progressReport;
+exports.defaultProgressReport = defaultProgressReport;

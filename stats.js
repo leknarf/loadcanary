@@ -1,4 +1,5 @@
 var sys = require('sys');
+var httpReport = require('./httpreport');
 
 function Histogram(numBuckets) {
     // default histogram size of 5000: when tracking latency at ms resolution, this
@@ -91,12 +92,12 @@ Histogram.prototype =  {
         return Math.sqrt(s / this.length);
     },
     summary: function() {
-        return '"count": ' + this.length +
-            ', "min": ' + this.min +
-            ', "mean": ' + this.mean().toFixed(1) +
-            ', "median": ' + this.percentile(.5) +
-            ', "95%": ' + this.percentile(.95) +
-            ', "99%": ' + this.percentile(.99);
+        return {
+            min: this.min,
+            mean: this.mean().toFixed(1),
+            median: this.percentile(.5),
+            "95%": this.percentile(.95),
+            "99%": this.percentile(.99)};
     }
 }
 
@@ -122,7 +123,7 @@ Accumulator.prototype = {
 }
 
 function ResultCounter() {
-    this.items = [];
+    this.items = {};
     this.length = 0;
 }
 ResultCounter.prototype = {
@@ -135,20 +136,22 @@ ResultCounter.prototype = {
         this.length++;
     },
     get: function(item) {
-        return this.items[item];
+        if (item.length > 0) {
+            var total = 0;
+            for (var i in item) {
+                total += this.items[i];
+            }
+            return total;
+        } else {
+            return this.items[item];
+        }
     },
     clear: function() {
-        this.items = [];
+        this.items = {};
         this.length = 0;
     },
     summary: function() {
-        var s = '';
-        for (item in this.items) {
-            if (s.length > 0)
-                s += ", ";
-            s += '"' + item + '": "' + this.items[item] + '"';
-        }
-        return s;
+        return this.items;
     }
 }
 
@@ -170,14 +173,17 @@ Peak.prototype = {
         this.peak = 0;
     },
     summary: function() {
-        return '"max": ' + '"' + this.peak + '"';
+        return { max: this.peak };
     }
 }
 
-function Monitorable(backend, id) {
-    this.id = id;
+function Monitorable(backend, name, addToHttpReport) {
+    this.name = name;
     this.interval = new backend();
     this.cumulative = new backend();
+    if (addToHttpReport) {
+        httpReport.httpReport.addChart(this.name);
+    }
 }
 Monitorable.prototype = {
     put: function(stat) {
