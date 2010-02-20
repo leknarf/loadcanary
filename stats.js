@@ -1,5 +1,4 @@
 var sys = require('sys');
-var httpReport = require('./httpreport');
 
 function Histogram(numBuckets) {
     // default histogram size of 5000: when tracking latency at ms resolution, this
@@ -177,13 +176,10 @@ Peak.prototype = {
     }
 }
 
-function Monitorable(backend, name, addToHttpReport) {
+function Monitorable(backend, name) {
     this.name = name;
     this.interval = new backend();
     this.cumulative = new backend();
-    if (addToHttpReport) {
-        httpReport.httpReport.addChart(this.name);
-    }
 }
 Monitorable.prototype = {
     put: function(stat) {

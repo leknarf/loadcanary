@@ -102,7 +102,7 @@ function initClientRequest(clientIdCounter) {
             request = requestGenerator.getRequest(connection);
         }
 
-        request.finish(function(response) {
+        request.addListener('response', function(response) {
             var end = new Date();
             var	delta = end - start;
             cumulativeStats.put(delta);
@@ -117,6 +117,7 @@ function initClientRequest(clientIdCounter) {
                 }
             });
         });
+        request.close();
     }
 
     process.nextTick(doRequest);
