@@ -111,6 +111,8 @@ function initClientRequest(clientIdCounter) {
             
             response.addListener('body', function(body) {
                 bytesTransferred += body.length;
+            });
+            response.addListener('end', function(body) {
                 // Tee up next request after this one finishes.
                 if (lagging == true) {
                     process.nextTick(doRequest);
