@@ -137,28 +137,27 @@ function writeHtmlReport(fileName, reportText, reportData) {
     fs.open(
         fileName,
         process.O_WRONLY|process.O_CREAT,
-        process.S_IRWXU|process.S_IRWXG|process.S_IROTH
-    ).addCallback(function(fd) {
-        fs.write(fd, 
-            "<html><head><title>nodeload results: " + now + "</title>\n" +
-            '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n' +
-            '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n' +
-            '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>' +
-            '<h2>Latency (ms) vs. Time</h2>\n' +
-            '<div id="latency" style="width:800px;height:400px;"></div>\n' +
-            '<h2>Requests Per Second vs. Time</h2>\n' +
-            '<div id="rps" style="width:800px;height:400px;"></div>\n' +
-            '<script id="latencyData" language="javascript" type="text/javascript">\n' +
-            '$(function () { $.plot($("#latency"), ' + latencyChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
-            "</script>\n" +
-            '<script id="rpsData" language="javascript" type="text/javascript">\n' +
-            '$(function () { $.plot($("#rps"), ' + rpsChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
-            "</script>\n" +
-            "</body></html>",
-            null, "ascii").addCallback(function(bytes) {
-                fs.close(fd);
-            });
-    });
+        process.S_IRWXU|process.S_IRWXG|process.S_IROTH,
+        function(err, fd) {
+            fs.write(fd, 
+                "<html><head><title>nodeload results: " + now + "</title>\n" +
+                '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>\n' +
+                '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>\n' +
+                '</head>\n<body>\n<h1>Test Results from ' + now + '</h1>\n<pre>' + reportText + '</pre>' +
+                '<h2>Latency (ms) vs. Time</h2>\n' +
+                '<div id="latency" style="width:800px;height:400px;"></div>\n' +
+                '<h2>Requests Per Second vs. Time</h2>\n' +
+                '<div id="rps" style="width:800px;height:400px;"></div>\n' +
+                '<script id="latencyData" language="javascript" type="text/javascript">\n' +
+                '$(function () { $.plot($("#latency"), ' + latencyChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
+                "</script>\n" +
+                '<script id="rpsData" language="javascript" type="text/javascript">\n' +
+                '$(function () { $.plot($("#rps"), ' + rpsChart + ', { xaxis: { mode: "time", timeformat: "%H:%M:%S"}, yaxis: {min: 0}, legend: {position: "se", backgroundOpacity: 0} }); });\n' +
+                "</script>\n" +
+                "</body></html>",
+                null, "ascii", function(err, bytes) { fs.close(fd) });
+        }
+    );
 }
 
 function getFlotChart(data) {
