@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2010 Orlando Vazquez
  Copyright (c) 2010 Benjamin Schmaus
+ Copyright (c) 2010 Jonathan Lee
 
  Permission is hereby granted, free of charge, to any person
  obtaining a copy of this software and associated documentation

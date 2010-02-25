@@ -1,7 +1,7 @@
 NAME
 ----
 
-    nodeload - HTTP benchmark and load generator tool
+    nodeload - Load test tool for HTTP APIs.  Generates result charts and has hooks for generating requests.
 
 SYNOPSIS
 --------
@@ -11,18 +11,7 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-    nodeload is for generating lots of HTTP traffic. By utilizing Node.js's
-    powerful asynchronous abilities it's possible to create an enormous number
-    of requests.
-
-----
-
-    Outside the ordered universe that amorphous blight of nethermost confusion
-    which blasphemes  and bubbles at the center of all infinity; the boundless
-    daemon sultan Azathoth, whose name no lips dare speak aloud, and who gnaws
-    hungrily in inconceivable, unlighted chambers beyond time and space amidst
-    the muffled, maddening beating of vile drums and the thin monotonous whine
-    of accursed flutes.                     The Dream Quest -- H. P. Lovecraft
+    nodeload is for generating lots of requests to send to an HTTP API. By utilizing Node.js's powerful asynchronous abilities it's possible to create an enormous number of requests.
 
 OPTIONS
 -------
@@ -74,8 +63,13 @@ QUICKSTART
 AUTHORS
 -------
 
-    Orlando Vazquez <ovazquez@gmail.com>
     Benjamin Schmaus <benjamin.schmaus@gmail.com>
+    Jonathan Lee <jonjlee@gmail.com>
+
+THANKS
+------
+
+Thanks to Orlando Vazquez <ovazquez@gmail.com> for the original proof of concept app.
 
 SEE ALSO
 --------
