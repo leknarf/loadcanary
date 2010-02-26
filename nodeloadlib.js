@@ -140,10 +140,9 @@ addRamp = function(spec) {
     });
 }
 
-startTests = function(stayAliveAfterDone) {
+startTests = function(callback, stayAliveAfterDone) {
     HTTP_REPORT.setText("");
 
-    var promise = SCHEDULER.startAll();
     function finish() {
         qprint('done.\n');
         summaryReport(summaryStats);
@@ -151,14 +150,16 @@ startTests = function(stayAliveAfterDone) {
             // End process if no more tests are started within 3 seconds.
             endTestTimeoutId = setTimeout(endTest, 3000);
         }
+        if (callback != null) {
+            callback();
+        }
     }
-    promise.addCallback(finish);
-    return promise;
+    SCHEDULER.startAll(finish);
 }
 
-runTest = function(spec) {
+runTest = function(spec, callback) {
     addTest(spec);
-    return startTests();
+    return startTests(callback);
 }
 
 endTest = function() {
@@ -221,7 +222,8 @@ SCHEDULE_DEFAULTS = {
 Scheduler = function() {
     this.id=uid();
     this.schedules = [];
-    this.promise = null;
+    this.running = false;
+    this.callback = null;
 }
 Scheduler.prototype = {
     schedule: function(spec) {
@@ -235,19 +237,19 @@ Scheduler.prototype = {
     },
     startSchedule: function(s) {
         var scheduler = this;
-        s.start().addCallback(function() { scheduler.checkFinished() });
+        s.start(function() { scheduler.checkFinished() });
     },
-    startAll: function() {
-        if (this.promise != null)
-            return this.promise;
+    startAll: function(callback) {
+        if (this.running)
+            return;
 
         var len = this.schedules.length;
         for (var i = 0; i < len; i++) {
             this.startSchedule(this.schedules[i]);
         }
 
-        this.promise = new events.Promise();
-        return this.promise;
+        this.callback = callback;
+        this.running = true;
     },
     stopAll: function() {
         for (var i in this.schedules) {
@@ -260,15 +262,15 @@ Scheduler.prototype = {
                 return false;
             }
         }
+        this.running = false;
         this.stopAll();
         this.schedules = [];
 
-        if (this.promise != null) {
-            // Clear out promise before calling emitSuccess since callback may 
-            // actually call startAll() again.
-            var oldPromise = this.promise;
-            this.promise = null;
-            oldPromise.emitSuccess();
+        if (this.callback != null) {
+            // Clear out callback before calling it since function may actually call startAll() again.
+            var oldCallback = this.callback;
+            this.callback = null;
+            oldCallback();
         }
 
         return true;
@@ -287,6 +289,7 @@ function Schedule(spec) {
     this.delay = spec.delay;
     this.monitored = spec.monitored;
 
+    this.callback = null;
     this.started = false;
     this.done = false;
     
@@ -295,7 +298,7 @@ function Schedule(spec) {
     this.warningTimeoutId.id = this.id;
 }
 Schedule.prototype = {
-    start: function() {
+    start: function(callback) {
         clearTimeout(this.warningTimeoutId); // Cancel "didn't start schedule" warning
         clearTimeout(endTestTimeoutId); // Do not end the process if loop is started
 
@@ -344,14 +347,14 @@ Schedule.prototype = {
             this.args = this.argGenerator();
         }
 
-        this.promise = new events.Promise();
+        this.callback = callback;
         this.loop = new ConditionalLoop(fun, this.args, conditions, this.delay);
-        this.loop.start().addCallback(function() {
+        this.loop.start(function() {
             schedule.done = true;
-            schedule.promise.emitSuccess();
+            if (schedule.callback != null) {
+                schedule.callback();
+            }
         });
-        
-        return this.promise;
     },
     stop: function() {
         if (this.loop != null) {
@@ -391,6 +394,7 @@ function ConditionalLoop(fun, args, conditions, delay) {
     this.conditions = (conditions == null) ? [] : conditions;
     this.delay = delay;
     this.stopped = true;
+    this.callback = null;
 }
 ConditionalLoop.prototype = {
     checkConditions: function() {
@@ -409,19 +413,19 @@ ConditionalLoop.prototype = {
             var loop = this;
             process.nextTick(function() { loop.fun(function() { loop.loop() }, loop.args) });
         } else {
-            this.promise.emitSuccess();
+            if (this.callback != null)
+                this.callback();
         }
     },
-    start: function() {
+    start: function(callback) {
         var loop = this;
-        this.promise = new events.Promise();
+        this.callback = callback;
         this.stopped = false;
         if (this.delay != null && this.delay > 0) {
             setTimeout(function() { loop.loop() }, this.delay * 1000);
         } else {
             this.loop();
         }
-        return this.promise;
     },
     stop: function() {
         this.stopped = true;
@@ -655,7 +659,7 @@ function summaryReport(stats) {
 // HTTP Server
 // ------------------------------------
 var MAX_POINTS_PER_CHART = 60;
-var SUMMARY_HTML_REFRESH_PERIOD = 1000;
+var SUMMARY_HTML_REFRESH_PERIOD = 10000;
 
 function Report(name) {
     this.name = name;
@@ -796,47 +800,53 @@ function serveChart(chart, response) {
 }
 
 function serveFile(file, response) {
-    fs.stat(file).addCallback(function(stat) {
-        if (stat.isFile()) {
-            response.sendHeader(200, {
-                'Content-Length': stat.size,
-            });
+    fs.stat(file, function(err, stat) {
+        if (err == null) {
+            if (stat.isFile()) {
+                response.sendHeader(200, {
+                    'Content-Length': stat.size,
+                });
 
-            fs.open(file, process.O_RDONLY, 0666).addCallback(function (fd) {
-                var pos = 0;
-                function streamChunk() {
-                    fs.read(fd, 16*1024, pos, "binary").addCallback(function(chunk, bytesRead) {
-                        if (!chunk) {
-                            fs.close(fd);
-                            response.close();
-                            return;
+                fs.open(file, process.O_RDONLY, 0666, function (err, fd) {
+                    if (err == null) {
+                        var pos = 0;
+                        function streamChunk() {
+                            fs.read(fd, 16*1024, pos, "binary", function(err, chunk, bytesRead) {
+                                if (err == null) {
+                                    if (!chunk) {
+                                        fs.close(fd);
+                                        response.close();
+                                        return;
+                                    }
+
+                                    response.write(chunk, "binary");
+                                    pos += bytesRead;
+
+                                    streamChunk();
+                                } else {
+                                    response.sendHeader(500, {"Content-Type": "text/plain"});
+                                    response.write("Error reading file " + file);
+                                    response.close();
+                                }
+                            });
                         }
-
-                        response.write(chunk, "binary");
-                        pos += bytesRead;
-
                         streamChunk();
-                    }).addErrback(function (e) {
+                    } else {
                         response.sendHeader(500, {"Content-Type": "text/plain"});
-                        response.write("Error reading file " + file);
+                        response.write("Error opening file " + file);
                         response.close();
-                    });
-                }
-                streamChunk();
-            }).addErrback(function (e) {
-                response.sendHeader(500, {"Content-Type": "text/plain"});
-                response.write("Error opening file " + file);
+                    }
+                });
+            } else{
+                response.sendHeader(404, {"Content-Type": "text/plain"});
+                response.write("Not a file: " + file);
                 response.close();
-            });                  
-        } else{
+            } 
+        } else {
             response.sendHeader(404, {"Content-Type": "text/plain"});
-            response.write("Not a file: " + file);
+            response.write("Cannot find file: " + file);
             response.close();
         }
-    }).addErrback(function (e) {
-        response.sendHeader(404, {"Content-Type": "text/plain"});
-        response.write("Cannot find file: " + file);
-        response.close();
     });
 }
 
@@ -1051,7 +1061,8 @@ Uniques = function() {
     this.summary = function() {
         var uniques = 0;
         for (var i in this.items) {
-            uniques++;
+            if (i != "total")
+                uniques++;
         }
         return {total: this.length, uniqs: uniques};
     }
@@ -1111,32 +1122,24 @@ LogFile.prototype = {
         this.length++;
     },
     get: function(item) {
-        fs.stat(this.filename).addCallback(function (stats) {
-            item = stats;
-        }).wait();
+        fs.statSync(this.filename, function (err, stats) {
+            if (err == null) item = stats;
+        });
         return item;
     },
     clear: function() {
-        fs.truncate(this.fd, 0);
-        // TODO: file keeps growing because file pointer doesn't
-        // get reset, and close(); open(); keeps crashing in
-        // node.js. when it becomes available, we need to add a
-        // seek here or fix close(); open().
+        this.close();
+        this.open();
     },
     open: function() {
-        var logfile = this;
-        fs.open(
+        this.fd = fs.openSync(
             this.filename,
             process.O_WRONLY|process.O_CREAT|process.O_TRUNC,
-            process.S_IRWXU|process.S_IRWXG|process.S_IROTH
-        ).addCallback(function(fd) {
-            logfile.fd = fd;
-        }).wait();
+            process.S_IRWXU|process.S_IRWXG|process.S_IROTH);
     },
     close: function() {
-        var oldfd = this.fd;
+        fs.closeSync(this.fd);
         this.fd = null;
-        return fs.close(oldfd);
     },
     summary: function() {
         return { file: this.filename, written: this.length };
