@@ -109,8 +109,8 @@ function initClientRequest(clientIdCounter) {
             intervalStats.put(delta);
             finished = true;
             
-            response.addListener('body', function(body) {
-                bytesTransferred += body.length;
+            response.addListener('data', function(chunk) {
+                bytesTransferred += chunk.length;
             });
             response.addListener('end', function(body) {
                 // Tee up next request after this one finishes.
@@ -145,7 +145,6 @@ var doReport = function() {
 }
 
 function main() {
-
     if (quiet)
         report.setEcho(false);
 
@@ -157,3 +156,4 @@ function main() {
 }
 
 main();
+

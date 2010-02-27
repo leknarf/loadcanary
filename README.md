@@ -37,9 +37,11 @@ OPTIONS
 ENVIRONMENT
 -----------
 
-    nodeload requires node to be installed somewhere on your path. You should
-    have a version of node that uses the fs module instead of posix (posix was
-    renamed to fs on 2010/02/12).
+    nodeload requires node to be installed somewhere on your path.
+
+    nodeload has been tested with node v0.1.30-22-g724ccf1. An official
+    nodeload release is forthcoming.
+    
 
 QUICKSTART
 ----------
@@ -55,7 +57,7 @@ QUICKSTART
     [~/code/nodeload] node examples/test-server.js &
     [1] 2756
     [~/code/nodeload] Server running at http://127.0.0.1:8000/
-    [~/code/nodeload] ./nodeload.js -f -c 10 -n 200 -r ./examples/test-generator.js localhost:8000
+    [~/code/nodeload] ./nodeload.js -f -c 10 -n 10000 -i 1 -r ./examples/test-generator.js localhost:8000
 
     You should now see some test output in your console.  The generated HTML
     report contains a graphical chart of test results.
