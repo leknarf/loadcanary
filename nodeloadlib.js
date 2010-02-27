@@ -770,9 +770,8 @@ function getReportAsHtml(report) {
            'function refresh_text() {' +
            '    $.ajax({ url: "/data/' + querystring.escape(report.name) + '/report-text",' +
            '          success: function(result) {' +
-           '              document.getElementById("reportText").innerHTML=result;' +
-           '          }' +
-           '    });' +
+           '              if (result != null && result.length > 0) $("#reportText").text(result);' +
+           '          }});' +
            '}' +
            '</script>' +
            '</body></html>'
