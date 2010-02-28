@@ -41,6 +41,11 @@ ENVIRONMENT
     To get a known working combination of nodeload + node grab a release
     download or checkout a release tag.
 
+    To find a version of node that's compatible with a tag release do
+    git show <tagname>.
+
+    For example: git show v0.1.1
+
 QUICKSTART
 ----------
     1. Install node.js.
