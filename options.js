@@ -53,7 +53,7 @@ var switches = [
     [ '-d', '--data STRING', 'Data to send along with PUT or POST request.' ],
     [ '-f', '--flot-chart', 'If set, generate an HTML page with a Flot chart of results.'],
     [ '-r', '--request-generator STRING', 'Path to module that exports getRequest function'],
-    [ '-i', '--report-interval NUMBER', 'Frequency in seconds to report statistics'],
+    [ '-i', '--report-interval NUMBER', 'Frequency in seconds to report statistics. Default is 60.'],
     [ '-q', '--quiet', 'Supress display of progress count info.'],
     [ '-u', '--usage', 'Show usage info' ],
 ];

@@ -11,37 +11,35 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
-    nodeload is for generating lots of requests to send to an HTTP API. By utilizing Node.js's powerful asynchronous abilities it's possible to create an enormous number of requests.
+    nodeload is for generating lots of requests to send to an HTTP API. It is
+    inspired by Apache's ab benchmark tool and is designed to let programmers
+    develop load tests and get informative reports without having to learn a
+    big and complicated framework.. 
 
 OPTIONS
 -------
-    
-      -n, --number NUMBER              Number of requests to make. Defaults to
-                                       value of --concurrency unless a time
-                                       limit is specified.
-      -c, --concurrency NUMBER         Concurrent number of connections.
-                                       Defaults to 1.
-      -t, --time-limit NUMBER          Number of seconds to spend running test.
-                                       No timelimit by default.
-      -m, --method STRING              HTTP method to use.
-      -d, --data STRING                Data to send along with PUT or POST
-                                       request.
-      -f, --flot-chart                 If set, generate an HTML page with a
-                                       Flot chart of results.
-      -r, --request-generator STRING   Path to module that exports getRequest
-                                       function, which should return a request
-                                       using the given HTTP client.
-      -q, --quiet                      Supress display of progress count info.
-      -u, --usage                      Show usage info
+
+  -n, --number NUMBER              Number of requests to make. Defaults to
+                                   value of --concurrency unless a time limit
+                                   is specified.
+  -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
+  -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
+  -e, --request-rate NUMBER        Target number of requests per seconds. Infinite by default
+  -m, --method STRING              HTTP method to use.
+  -d, --data STRING                Data to send along with PUT or POST request.
+  -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
+  -r, --request-generator STRING   Path to module that exports getRequest function
+  -i, --report-interval NUMBER     Frequency in seconds to report statistics
+  -q, --quiet                      Supress display of progress count info.
+  -u, --usage                      Show usage info
 
 ENVIRONMENT
 -----------
 
     nodeload requires node to be installed somewhere on your path.
 
-    nodeload has been tested with node v0.1.30-22-g724ccf1. An official
-    nodeload release is forthcoming.
-    
+    To get a known working combination of nodeload + node grab a release
+    download or checkout a release tag.
 
 QUICKSTART
 ----------
