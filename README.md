@@ -20,8 +20,8 @@ OPTIONS
 -------
 
     -n, --number NUMBER              Number of requests to make. Defaults to
-                                   value of --concurrency unless a time limit
-                                   is specified.
+                                     value of --concurrency unless a time limit
+                                     is specified.
     -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
     -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
     -e, --request-rate NUMBER        Target number of requests per seconds. Infinite by default
