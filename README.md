@@ -19,19 +19,19 @@ DESCRIPTION
 OPTIONS
 -------
 
-  -n, --number NUMBER              Number of requests to make. Defaults to
+    -n, --number NUMBER              Number of requests to make. Defaults to
                                    value of --concurrency unless a time limit
                                    is specified.
-  -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
-  -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
-  -e, --request-rate NUMBER        Target number of requests per seconds. Infinite by default
-  -m, --method STRING              HTTP method to use.
-  -d, --data STRING                Data to send along with PUT or POST request.
-  -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
-  -r, --request-generator STRING   Path to module that exports getRequest function
-  -i, --report-interval NUMBER     Frequency in seconds to report statistics
-  -q, --quiet                      Supress display of progress count info.
-  -u, --usage                      Show usage info
+    -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
+    -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
+    -e, --request-rate NUMBER        Target number of requests per seconds. Infinite by default
+    -m, --method STRING              HTTP method to use.
+    -d, --data STRING                Data to send along with PUT or POST request.
+    -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
+    -r, --request-generator STRING   Path to module that exports getRequest function
+    -i, --report-interval NUMBER     Frequency in seconds to report statistics
+    -q, --quiet                      Supress display of progress count info.
+    -u, --usage                      Show usage info
 
 ENVIRONMENT
 -----------
