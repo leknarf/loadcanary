@@ -59,7 +59,7 @@ Define these global variables before including `nodeloadlib` to control its beha
 COMPONENTS
 ================
 
-### Load Test Functions ###
+## Load Test Functions ##
 
 High-level functions useful for quickly building up complex load tests.
 
@@ -168,7 +168,7 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
 
 
 
-### Function Scheduler ###
+## Function Scheduler ##
 
 The `SCHEDULER` object allows a function to be called at a desired rate and concurrency level.
 
@@ -220,7 +220,7 @@ Example:
     };
 
 
-### Event-based loops ###
+## Event-based loops ##
 
 The `ConditionalLoop` class provides a generic way to write a loop where each iteration is scheduled using `process.nextTick()`. This allows many long running "loops" to be executed concurrently by `node.js`.
 
@@ -263,7 +263,7 @@ The `ConditionalLoop` constructor arguments are:
     delay: Seconds to wait before starting the first iteration
 
 
-### Statistics ###
+## Statistics ##
 
 Implementations of various statistics.
 
@@ -299,6 +299,48 @@ In addition, these other methods are supported:
 * `Reportable.next()`: clear out the interval statistic for the next window.
 
 Refer to the `Statistics` section near line 910 of [nodeloadlib.js](http://github.com/benschmaus/nodeload/tree/master/nodeloadlib.js) for the return value of the `get()` and `summary()` functions for the different classes.
+
+
+## HTTP-specific Monitors ##
+
+A collection of wrappers for `requestLoop` functions that record statistics for HTTP requests. These functions can be run scheduled with `SCHEDULER` or run with a `ConditionalLoop`.
+
+**Functions:**
+
+* `monitorLatenciesLoop(latencies, fun)`: Call `fun()` and put the execution duration in `latencies`, which should be a `Histogram`.
+* `monitorResultsLoop(results, fun)`: Call `fun()` and put the HTTP response code in `results`, which should be a `ResultsCounter`.
+* `monitorByteReceivedLoop(bytesReceived, fun)`: Call `fun()` and put the number of bytes received in `bytesReceived`, usually an `Accumulator`.
+* `monitorConcurrencyLoop(concurrency, fun)`: Call `fun()` and put the number of "threads" currently executing it into `concurrency`, usually a `Peak`.
+* `monitorRateLoop(rate, fun)`: Call `fun()` and notify `rate`, which should be a `Rate`, that it was called.
+* `monitorHttpFailuresLoop(successCodes, fun, log)`: Call `fun()` and put the HTTP request and response into `log`, which should be a `LogFile`, for every request that does not return an HTTP status code included in the list `successCodes`.
+* `monitorUniqueUrlsLoop(uniqs, fun)`: Call `fun()` and put the HTTP request path into `uniqs`, which should be a `Uniques`.
+* `loopWrapper(fun, start, finish)`: Create a custom loop wrapper by specifying a functions to execute before and after calling `fun()`.
+
+**Usage:**
+
+All of these wrappers return a `function(loopFun, args)` which can be used by `SCHEDULER` and `ConditionalLoop`. The underlying function should have the same signature and execute an HTTP request. It must call `loopFun({req: http.ClientRequest, res: http.ClientResponse})` when it completes the request.
+
+Example:
+
+    // Issue GET requests to random objects at localhost:8080/data/obj-{0-1000} for 1 minute and
+    // track the number of unique URLs
+    var uniq = new Reportable(Uniques, 'Uniques');
+    var loop = monitorUniqueUrlsLoop(uniq, function(loopFun, client) {
+        var req = traceableRequest(client, 'GET', '/data/obj-' + Math.floor(Math.random()*1000));
+        req.addListener('response', function(response) {
+            sys.puts('ah')
+            loopFun({req: req, res: response});
+        });
+        req.close();
+    });
+    SCHEDULER.schedule({
+        fun: loop,
+        args: http.createClient(8080, 'localhost'),
+        duration: 60
+    }).start(function() {
+        sys.puts(JSON.stringify(uniq.summary()));
+    });
+    
 
 TIPS AND TRICKS
 ================
