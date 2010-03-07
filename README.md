@@ -79,4 +79,4 @@ Thanks to Orlando Vazquez <ovazquez@gmail.com> for the original proof of concept
 SEE ALSO
 --------
 
-    ab(1)
+`ab(1)`, [NODELOADLIB.md](http://github.com/benschmaus/nodeload/blob/master/NODELOADLIB.md)
