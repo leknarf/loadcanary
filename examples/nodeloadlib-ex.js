@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+// Instructions:
+// 
+// 1. Get node (http://nodejs.org/#download)
+// 2. git clone http://github.com/benschmaus/nodeload.git
+// 3. node nodeload/examples/nodeloadlib-ex.js
+//
 // This example performs a micro-benchmark of Riak (http://riak.basho.com/), a key-value store,
 // running on localhost:8080. First, it first loads 2000 objects into the store as quickly as
 // possible. Then, it performs a 90% read + 10% update test at total request rate of 300 rps.
