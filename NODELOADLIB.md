@@ -342,6 +342,30 @@ Example:
     });
     
 
+
+## Web-based Reports ##
+
+Functions for manipulating the report that is available during the test at http://localhost:8000/ and that is written to `results-{timestamp}-summary.html`.  Note that the directory `flot/` must be present for the charts to display properly.
+
+**Functions:**
+
+* `HTTP_REPORT.setText(text)`: Sets the text at the top of the report.
+* `HTTP_REPORT.puts(text)`: Appends the line `text` to the text at the top of the report.
+* `HTTP_REPORT.addChart(name)`: Adds a chart with the title `name` to the report and returns a `Chart` object. See `Chart.put(data)` below.
+* `HTTP_REPORT.removeChart(name)`: Removes the chart with title `name` from the report.
+* `HTTP_REPORT.clear()`: Clears the text and removes all charts from the report.
+* `Chart.put(data)`: Add the data, which is a map of { 'trend-1': value, 'trend-2': value, ... }, to the chart, which tracks the values for each trend over time.
+
+**Usage:**
+
+An HTTP server is started on port `HTTP_SERVER_PORT`, which defaults to 8000, unless `DISABLE_HTTP_SERVER=true` when `nodeloadlib` is included. Likewise, the file `results-{timestamp}-summary.html` is written to the current directory when the test ends unless `DISABLE_LOGS=true` when `nodeloadlib` is included.
+
+A chart is automatically added to `HTTP_REPORT` for each statistic requested in a test created by `addTest()` or `runTest()`, and for each `Reportable` object created with parameter `addToHttpReport=true`. Call `HTTP_REPORT.addChart()` to add additional charts to the report. Add data points to it manually by calling `put()` on the returned object.
+
+The progress page automatically issues an AJAX request to refresh the text and chart data every `SUMMARY_HTML_REFRESH_PERIOD` milliseconds.
+
+
+
 TIPS AND TRICKS
 ================
 

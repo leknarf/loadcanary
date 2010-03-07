@@ -168,12 +168,16 @@ endTest = function() {
 }
 
 setTestConfig = function(configType) {
+    var refreshPeriod;
     if (configType == 'long') {
-        SUMMARY_HTML_REFRESH_PERIOD = 10000;
+        refreshPeriod = 10000;
         TEST_DEFAULTS.reportInterval = 10;
     } else {
-        SUMMARY_HTML_REFRESH_PERIOD = 2000;
+        refreshPeriod = 2000;
         TEST_DEFAULTS.reportInterval = 2;
+    }
+    if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
+        SUMMARY_HTML_REFRESH_PERIOD = refreshPeriod;
     }
 }
     
@@ -670,7 +674,6 @@ function summaryReport(statsList) {
 // HTTP Server
 // ------------------------------------
 var MAX_POINTS_PER_CHART = 60;
-var SUMMARY_HTML_REFRESH_PERIOD;    // defined in setTestConfig()
 
 function Report(name) {
     this.name = name;
@@ -1273,6 +1276,12 @@ qprint = function(s) {
 if (typeof QUIET == "undefined")
     QUIET = false;
 
+if (typeof TEST_CONFIG == "undefined") {
+    setTestConfig('short');
+} else {
+    setTestConfig(TEST_CONFIG);
+}
+
 if (typeof SCHEDULER == "undefined")
     SCHEDULER = new Scheduler();
 
@@ -1287,11 +1296,5 @@ if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
 
 if (typeof DISABLE_LOGS == "undefined")
     DISABLE_LOGS = false;
-
-if (typeof TEST_CONFIG == "undefined") {
-    setTestConfig('short');
-} else {
-    setTestConfig(TEST_CONFIG);
-}
 
 openAllLogs();
