@@ -18,7 +18,7 @@ var TEST_DEFAULTS = {
     host: 'localhost',                  // host and port specify where to connect
     port: 8080,                         //
     requestGenerator: null,             // Specify one of: requestGenerator, requestLoop, or (method, path, requestData)
-    requestLoop: null,                  //   - A requestGenerator is a functionthat takes a http.Client param
+    requestLoop: null,                  //   - A requestGenerator is a function that takes a http.Client param
     method: 'GET',                      //     and returns a http.ClientRequest.
     path: '/',                          //   - A requestLoop is a function that takes two params (loopFun, http.Client).
     requestData: null,                  //     It should call loopFun({req: http.ClientRequest, res: http.ClientResponse})
@@ -169,6 +169,16 @@ endTest = function() {
     setTimeout(process.exit, 500);
 }
 
+setTestConfig = function(configType) {
+    if (configType == 'long') {
+        SUMMARY_HTML_REFRESH_PERIOD = 10000;
+        TEST_DEFAULTS.reportInterval = 10;
+    } else {
+        SUMMARY_HTML_REFRESH_PERIOD = 2000;
+        TEST_DEFAULTS.reportInterval = 2;
+    }
+}
+    
 traceableRequest = function(client, method, path, headers, body) {
     if (headers != null && headers['content-length'] == null) {
         if (body == null) {
@@ -208,34 +218,39 @@ function defaults(spec, defaults) {
 // Scheduler for event-based loops
 // -----------------------------------------
 SCHEDULER = null;
-SCHEDULE_DEFAULTS = {
-    fun: null,
-    args: null,
-    argGenerator: null,
-    concurrency: 1,
-    rps: Infinity,
-    duration: Infinity,
-    numberOfTimes: Infinity,
-    delay: 0,
-    monitored: true
+var JOB_DEFAULTS = {
+    fun: null,                  // A function to execute which accepts the parameters (loopFun, args).
+                                // The value of args is the return value of argGenerator() or the args
+                                // parameter if argGenerator is null. The function must call 
+                                // loopFun(results) when it completes.
+    argGenerator: null,         // A function which is called once when the job is started. The return
+                                // value is passed to fun as the "args" parameter. This is useful when
+                                // concurrency > 1, and each "thread" should have its own args.
+    args: null,                 // If argGenerator is NOT specified, then this is passed to the fun as "args".
+    concurrency: 1,             // Number of concurrent calls of fun()
+    rps: Infinity,              // Target number of time per second to call fun()
+    duration: Infinity,         // Maximum duration of this job in seconds
+    numberOfTimes: Infinity,    // Maximum number of times to call fun()
+    delay: 0,                   // Seconds to wait before calling fun() for the first time
+    monitored: true             // Does this job need to finish in order for SCHEDULER.startAll() to end?
 };
 Scheduler = function() {
     this.id=uid();
-    this.schedules = [];
+    this.jobs = [];
     this.running = false;
     this.callback = null;
 }
 Scheduler.prototype = {
     schedule: function(spec) {
-        defaults(spec, SCHEDULE_DEFAULTS);
-        var s = new Schedule(spec);
-        this.addSchedule(s);
+        defaults(spec, JOB_DEFAULTS);
+        var s = new Job(spec);
+        this.addJob(s);
         return s;
     },
-    addSchedule: function(s) {
-        this.schedules.push(s);
+    addJob: function(s) {
+        this.jobs.push(s);
     },
-    startSchedule: function(s) {
+    startJob: function(s) {
         var scheduler = this;
         s.start(function() { scheduler.checkFinished() });
     },
@@ -243,28 +258,30 @@ Scheduler.prototype = {
         if (this.running)
             return;
 
-        var len = this.schedules.length;
+        var len = this.jobs.length;
         for (var i = 0; i < len; i++) {
-            this.startSchedule(this.schedules[i]);
+            if (!this.jobs[i].started) {
+                this.startJob(this.jobs[i]);
+            }
         }
 
         this.callback = callback;
         this.running = true;
     },
     stopAll: function() {
-        for (var i in this.schedules) {
-            this.schedules[i].stop();
+        for (var i in this.jobs) {
+            this.jobs[i].stop();
         }
     },
     checkFinished: function() {
-        for (var i in this.schedules) {
-            if (this.schedules[i].monitored && !this.schedules[i].done) {
+        for (var i in this.jobs) {
+            if (this.jobs[i].monitored && !this.jobs[i].done) {
                 return false;
             }
         }
         this.running = false;
         this.stopAll();
-        this.schedules = [];
+        this.jobs = [];
 
         if (this.callback != null) {
             // Clear out callback before calling it since function may actually call startAll() again.
@@ -277,7 +294,7 @@ Scheduler.prototype = {
     }
 }
 
-function Schedule(spec) {
+function Job(spec) {
     this.id = uid();
     this.fun = spec.fun;
     this.args = spec.args;
@@ -293,13 +310,13 @@ function Schedule(spec) {
     this.started = false;
     this.done = false;
     
-    var schedule = this;
-    this.warningTimeoutId = setTimeout(function() { qputs("WARN: a schedule" + schedule.id + " was not started; Schedule.start() called?") }, 3000);
+    var job = this;
+    this.warningTimeoutId = setTimeout(function() { qputs("WARN: a job" + job.id + " was not started; Job.start() called?") }, 3000);
     this.warningTimeoutId.id = this.id;
 }
-Schedule.prototype = {
+Job.prototype = {
     start: function(callback) {
-        clearTimeout(this.warningTimeoutId); // Cancel "didn't start schedule" warning
+        clearTimeout(this.warningTimeoutId); // Cancel "didn't start job" warning
         clearTimeout(endTestTimeoutId); // Do not end the process if loop is started
 
         if (this.fun == null)
@@ -307,7 +324,7 @@ Schedule.prototype = {
         if (this.started)
             return this;
 
-        var schedule = this;
+        var job = this;
         var fun = this.fun;
         var conditions = [];
 
@@ -320,8 +337,8 @@ Schedule.prototype = {
             if (clone.rps != null) {
                 clone.rps /= this.concurrency;
             }
-            SCHEDULER.addSchedule(clone);
-            SCHEDULER.startSchedule(clone);
+            SCHEDULER.addJob(clone);
+            SCHEDULER.startJob(clone);
         }
         if (this.rps != null && this.rps < Infinity) {
             var rps = this.rps;
@@ -350,9 +367,9 @@ Schedule.prototype = {
         this.callback = callback;
         this.loop = new ConditionalLoop(fun, this.args, conditions, this.delay);
         this.loop.start(function() {
-            schedule.done = true;
-            if (schedule.callback != null) {
-                schedule.callback();
+            job.done = true;
+            if (job.callback != null) {
+                job.callback();
             }
         });
     },
@@ -362,17 +379,17 @@ Schedule.prototype = {
         }
     },
     clone: function() {
-        var schedule = this;
-        var other = new Schedule({
-            fun: schedule.fun,
-            args: schedule.args,
-            concurrency: schedule.concurrency,
-            argGenerator: schedule.argGenerator,
-            rps: schedule.rps,
-            duration: schedule.duration,
-            numberOfTimes: schedule.numberOfTimes,
-            delay: schedule.delay,
-            monitored: schedule.monitored
+        var job = this;
+        var other = new Job({
+            fun: job.fun,
+            args: job.args,
+            concurrency: job.concurrency,
+            argGenerator: job.argGenerator,
+            rps: job.rps,
+            duration: job.duration,
+            numberOfTimes: job.numberOfTimes,
+            delay: job.delay,
+            monitored: job.monitored
         });
         return other;
     },
@@ -388,7 +405,7 @@ function startScheduler() {
 // -----------------------------------------
 // Event-based looping
 // -----------------------------------------
-function ConditionalLoop(fun, args, conditions, delay) {
+ConditionalLoop = function(fun, args, conditions, delay) {
     this.fun = fun;
     this.args = args;
     this.conditions = (conditions == null) ? [] : conditions;
@@ -435,7 +452,7 @@ ConditionalLoop.prototype = {
 timeLimit = function(seconds) {
     var start = new Date();
     return function() { 
-        return (seconds == Infinity) || ((new Date() - start) < (seconds * 1000))
+        return (seconds == Infinity) || ((new Date() - start) < (seconds * 1000));
     };
 }
 
@@ -659,7 +676,7 @@ function summaryReport(stats) {
 // HTTP Server
 // ------------------------------------
 var MAX_POINTS_PER_CHART = 60;
-var SUMMARY_HTML_REFRESH_PERIOD = 10000;
+var SUMMARY_HTML_REFRESH_PERIOD;    // defined in setTestConfig()
 
 function Report(name) {
     this.name = name;
@@ -854,7 +871,6 @@ startHttpServer = function(port) {
         return;
         
     qputs('Serving progress report on port ' + port + '.');
-    HTTP_REPORT = new Report("main");
     HTTP_SERVER = http.createServer(function (req, res) {
         var now = new Date();
         if (req.url == "/") {
@@ -873,6 +889,9 @@ startHttpServer = function(port) {
 }
 
 stopHttpServer = function() {
+    if (typeof HTTP_SERVER == "undefined")
+        return;
+
     HTTP_SERVER.close();
     qputs('Shutdown report server.');
 }
@@ -1059,9 +1078,9 @@ Uniques = function() {
     this.length = 0;
     this.summary = function() {
         var uniques = 0;
+        delete this.items.total;
         for (var i in this.items) {
-            if (i != "total")
-                uniques++;
+            uniques++;
         }
         return {total: this.length, uniqs: uniques};
     }
@@ -1183,6 +1202,7 @@ openAllLogs = function() {
     SUMMARY_HTML = 'results-' + start + '-summary.html';
     STATS_LOG = new LogFile('results-' + start + '-stats.log');
     ERROR_LOG = new LogFile('results-' + start + '-err.log');
+    HTTP_REPORT = new Report("main");
     logsOpen = true;
 }
 
@@ -1213,8 +1233,16 @@ if (typeof QUIET == "undefined")
     QUIET = false;
 
 if (typeof HTTP_SERVER_PORT == "undefined")
-    HTTP_SERVER_PORT = 8000
+    HTTP_SERVER_PORT = 8000;
     
+if (typeof TEST_CONFIG == "undefined") {
+    setTestConfig('short');
+} else {
+    setTestConfig(TEST_CONFIG);
+}
+
+if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
+    startHttpServer(HTTP_SERVER_PORT);
+
 startScheduler();
-startHttpServer(HTTP_SERVER_PORT);
 openAllLogs();
