@@ -34,6 +34,9 @@ var TEST_DEFAULTS = {
                                         // only shows up in summary report and requests must be made with traceableRequest().
                                         // Not doing so will result in reporting only 2 uniques.
     reportInterval: 2,                  // Seconds between each progress report
+    reportFun: null,                    // Function called each reportInterval that takes a param, stats, which is a map of
+                                        // { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter},
+                                        // 'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
 }
 var RAMP_DEFAULTS = {
     test: null,                         // The test to ramp up, returned from from addTest()
@@ -64,36 +67,29 @@ addTest = function(spec) {
     }
 
     var stats = {};
-    var statsList = [];
     if (spec.stats.indexOf('latency') >= 0) {
         var l = new Reportable(Histogram, spec.name + ': Latency', true);
         monitored = monitorLatenciesLoop(l, monitored);
         stats['latency'] = l;
-        statsList.push(l);
     }
     if (spec.stats.indexOf('result-codes') >= 0) {
         var rc = new Reportable(ResultsCounter, spec.name + ': Result codes', true);
         monitored = monitorResultsLoop(rc, monitored);
-        stats['results-codes'] = rc;
-        statsList.push(rc);
+        stats['result-codes'] = rc;
     }
     if (spec.stats.indexOf('concurrency') >= 0) {
         var conc = new Reportable(Peak, spec.name + ': Concurrency', true);
         monitored = monitorConcurrencyLoop(conc, monitored);
         stats['concurrency'] = conc;
-        statsList.push(conc);
     }
     if (spec.stats.indexOf('uniques') >= 0) {
         var uniq = new Reportable(Uniques, spec.name + ': Uniques', false);
-        uniq.disableIntervalReporting = true;
         monitored = monitorUniqueUrlsLoop(uniq, monitored);
         stats['uniques'] = uniq;
-        summaryStats.push(uniq);
     }
     if (spec.successCodes != null) {
         monitored = monitorHttpFailuresLoop(spec.successCodes, monitored);
     }
-    summaryStats = summaryStats.concat(statsList);
 
     var s = SCHEDULER.schedule({
         fun: monitored,
@@ -107,7 +103,7 @@ addTest = function(spec) {
 
     if (spec.reportInterval != null) {
         SCHEDULER.schedule({
-            fun: progressReportLoop(statsList),
+            fun: progressReportLoop(stats, spec.reportFun),
             rps: 1/spec.reportInterval,
             delay: spec.reportInterval,
             monitored: false
@@ -116,6 +112,7 @@ addTest = function(spec) {
     
     s.stats = stats;
     s.testspec = spec;
+    summaryStats.push(stats);
     
     return s;
 }
@@ -158,8 +155,9 @@ startTests = function(callback, stayAliveAfterDone) {
 }
 
 runTest = function(spec, callback) {
-    addTest(spec);
-    return startTests(callback);
+    var t = addTest(spec);
+    startTests(callback);
+    return t;
 }
 
 endTest = function() {
@@ -217,7 +215,6 @@ function defaults(spec, defaults) {
 // -----------------------------------------
 // Scheduler for event-based loops
 // -----------------------------------------
-SCHEDULER = null;
 var JOB_DEFAULTS = {
     fun: null,                  // A function to execute which accepts the parameters (loopFun, args).
                                 // The value of args is the return value of argGenerator() or the args
@@ -393,11 +390,6 @@ Job.prototype = {
         });
         return other;
     },
-}
-
-function startScheduler() {
-    if (SCHEDULER == null)
-        SCHEDULER = new Scheduler();
 }
 
 
@@ -607,13 +599,10 @@ loopWrapper = function(fun, start, finish) {
 }
 
 progressReportLoop = function(stats, progressFun) {
-    if (progressFun == null)
-        progressFun = defaultProgressReport;
-    if (stats.length == null || stats.length == 0)
-        stats = [stats];
-
     return function(loopFun) {
-        progressFun(stats);
+        if (progressFun != null)
+            progressFun(stats);
+        defaultProgressReport(stats);
         loopFun();
     }
 }
@@ -650,19 +639,24 @@ function defaultProgressReport(stats) {
     }
 }
 
-function summaryReport(stats) {
+function summaryReport(statsList) {
     function pad(str, width) {
         return str + (new Array(width-str.length)).join(" ");
     }
     var out = pad("  Test Duration:", 20) + ((new Date() - start)/60000).toFixed(1) + " minutes\n";
-    for (var i in stats) {
-        var stat = stats[i];
-        var summary = stat.cumulative.summary();
-        out += "\n" +
-               "  " + stat.name + "\n" +
-               "  " + (new Array(stat.name.length+1)).join("-") + "\n";
-        for (var j in summary) {
-            out += pad("    " + j + ":", 20)  + summary[j] + "\n";
+    
+    // statsList is a list of maps: [{'name': Reportable, ...}, ...]
+    for (var s in statsList) {
+        var stats = statsList[s];
+        for (var i in stats) {
+            var stat = stats[i];
+            var summary = stat.cumulative.summary();
+            out += "\n" +
+                   "  " + stat.name + "\n" +
+                   "  " + (new Array(stat.name.length+1)).join("-") + "\n";
+            for (var j in summary) {
+                out += pad("    " + j + ":", 20)  + summary[j] + "\n";
+            }
         }
     }
     STATS_LOG.put("\n" + out);
@@ -897,7 +891,7 @@ stopHttpServer = function() {
 }
 
 addReportStat = function(stat) {
-    summaryStats.push(stat)
+    summaryStats.push([stat])
 }
 
 enableReportSummaryOnProgress = function(enabled) {
@@ -905,7 +899,9 @@ enableReportSummaryOnProgress = function(enabled) {
 }
 
 writeReport = function() {
-    fs.writeFile(SUMMARY_HTML, getReportAsHtml(HTTP_REPORT), "ascii");
+    if (!DISABLE_LOGS) {
+        fs.writeFile(SUMMARY_HTML, getReportAsHtml(HTTP_REPORT), "ascii");
+    }
 }
 
 
@@ -1030,7 +1026,7 @@ Accumulator.prototype = {
         this.length = 0;
     },
     summary: function() {
-        return '"total": ' + this.total;
+        return { total: this.total };
     }
 }
 
@@ -1074,18 +1070,33 @@ ResultsCounter.prototype = {
 }
 
 Uniques = function() {
+    this.start = new Date();
     this.items = {};
+    this.uniques = 0;
     this.length = 0;
-    this.summary = function() {
-        var uniques = 0;
-        delete this.items.total;
-        for (var i in this.items) {
-            uniques++;
+}
+Uniques.prototype = {
+    put: function(item) {
+        if (this.items[item] != null) {
+            this.items[item]++;
+        } else {
+            this.items[item] = 1;
+            this.uniques++
         }
-        return {total: this.length, uniqs: uniques};
+        this.length++;
+    },
+    get: function() {
+        return this.uniques;
+    },
+    clear: function() {
+        this.items = {};
+        this.unqiues = 0;
+        this.length = 0;
+    },
+    summary: function() {
+        return {total: this.length, uniqs: this.uniques};
     }
 }
-Uniques.prototype = ResultsCounter.prototype;
 
 Peak = function() {
     this.peak = 0;
@@ -1164,11 +1175,22 @@ LogFile.prototype = {
     }
 }
 
+NullLog = function() { this.length = 0; }
+NullLog.prototype = {
+    put: function(item) { /* nop */ },
+    get: function(item) { return null; },
+    clear: function() { /* nop */ }, 
+    open: function() { /* nop */ },
+    close: function() { /* nop */ },
+    summary: function() { return { file: 'null', written: 0 } }
+}
+
 Reportable = function(backend, name, addToHttpReport) {
     if (name == null)
         name = "";
 
     this.name = name;
+    this.length = 0;
     this.interval = new backend();
     this.cumulative = new backend();
     if (addToHttpReport) {
@@ -1181,10 +1203,21 @@ Reportable.prototype = {
             this.interval.put(stat);
         }
         this.cumulative.put(stat);
+        this.length++;
     },
+    get: function() { 
+        return null; 
+    },
+    clear: function() {
+        this.interval.clear();
+        this.cumulative.clear();
+    }, 
     next: function() {
         if (this.interval.length > 0)
             this.interval.clear();
+    },
+    summary: function() {
+        return { interval: this.interval.summary(), cumulative: this.cumulative.summary() };
     }
 }
 
@@ -1198,18 +1231,26 @@ openAllLogs = function() {
     if (logsOpen)
         return;
 
-    qputs("Opening log files.");
-    SUMMARY_HTML = 'results-' + start + '-summary.html';
-    STATS_LOG = new LogFile('results-' + start + '-stats.log');
-    ERROR_LOG = new LogFile('results-' + start + '-err.log');
-    HTTP_REPORT = new Report("main");
+    if (DISABLE_LOGS) {
+        STATS_LOG = new NullLog();
+        ERROR_LOG = new NullLog();
+    } else {
+        qputs("Opening log files.");
+        STATS_LOG = new LogFile('results-' + start + '-stats.log');
+        ERROR_LOG = new LogFile('results-' + start + '-err.log');
+        SUMMARY_HTML = 'results-' + start + '-summary.html';
+    }
+
     logsOpen = true;
 }
 
 closeAllLogs = function() {
     STATS_LOG.close();
     ERROR_LOG.close();
-    qputs("Closed log files.");
+
+    if (!DISABLE_LOGS) {
+        qputs("Closed log files.");
+    }
 }
 
 qputs = function(s) {
@@ -1232,17 +1273,25 @@ qprint = function(s) {
 if (typeof QUIET == "undefined")
     QUIET = false;
 
+if (typeof SCHEDULER == "undefined")
+    SCHEDULER = new Scheduler();
+
+if (typeof HTTP_REPORT == "undefined")
+    HTTP_REPORT = new Report("main");
+
 if (typeof HTTP_SERVER_PORT == "undefined")
     HTTP_SERVER_PORT = 8000;
     
+if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
+    startHttpServer(HTTP_SERVER_PORT);
+
+if (typeof DISABLE_LOGS == "undefined")
+    DISABLE_LOGS = false;
+
 if (typeof TEST_CONFIG == "undefined") {
     setTestConfig('short');
 } else {
     setTestConfig(TEST_CONFIG);
 }
 
-if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
-    startHttpServer(HTTP_SERVER_PORT);
-
-startScheduler();
 openAllLogs();

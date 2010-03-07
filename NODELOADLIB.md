@@ -1,5 +1,5 @@
 OVERVIEW
---------
+================
 
 `nodeloadlib` is a [node.js](http://nodejs.org/) library containing building blocks to programmatically create load tests for HTTP services.  The components are:
 
@@ -11,7 +11,7 @@ OVERVIEW
 * Web-based reports
 
 QUICKSTART
-----------
+================
 
 Add `require(./nodeloadlib.js)` and call `runTest()` or `addTest()/startTests()`:
 
@@ -45,20 +45,19 @@ This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
 
 
 CONFIGURATION
--------------------
+================
 
 Define these global variables before including `nodeloadlib` to control its behavior:
 
 * **QUIET**: set to true to disable all console output (default is false)
 * **HTTP_SERVER_PORT**: set to the port to start the HTTP server on (default is 8000)
 * **DISABLE_HTTP_SERVER**: set to true to not start the HTTP server (default is false)
+* **DISABLE_LOGS**: set to true to not create the log or HTML summary files (default is false)
 * **TEST_CONFIG**: can be "long" or "short" which changes the test reporting interval to more appropriate settings (default is "short")
 
 
 COMPONENTS
--------------------
-
-The following sections discuss individual components in `nodeloadlib`, which can be used independently.
+================
 
 ### Load Test Functions ###
 
@@ -151,6 +150,9 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
                                             // only shows up in summary report and requests must be made with traceableRequest().
                                             // Not doing so will result in reporting only 2 uniques.
         reportInterval: 2,                  // Seconds between each progress report
+        reportFun: null,                    // Function called each reportInterval that takes a param, stats, which is a map of
+                                            // { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter},
+                                            // 'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
     }
     
 **Ramp Definition:** The following object defines the parameters and defaults for a ramp, which is used by `addRamp()`:
@@ -259,3 +261,57 @@ The `ConditionalLoop` constructor arguments are:
     args: The args parameter to pass to fun
     conditions: A list of functions representing termination conditions. Terminate when any function returns `false`.
     delay: Seconds to wait before starting the first iteration
+
+
+### Statistics ###
+
+Implementations of various statistics.
+
+**Classes:**
+
+* `Histogram(numBuckets)`: A histogram of integers. If most of the items are between 0 and `numBuckets`, calculating percentiles and stddev is fast.
+* `Accumulator`: Calculates the sum of the numbers put in.
+* `ResultsCounter`: Tracks results which are be limited to a small set of possible choices. Tracks the total number of results, number of results by value, and results added per second.
+* `Uniques`: Tracks the number of unique items added.
+* `Peak`: Tracks the max of the numbers put in.
+* `Rate`: Tracks the rate at which items are added.
+* `LogFile`: Outputs to a file on disk.
+* `NullLog`: Ignores all items put in.
+* `Reportable`: Wraps any other statistic to store an interval and cumulative version of it.
+
+**Usage:**
+
+All of the statistics classes support the methods:
+
+* `.length`: The total number of items `put()` into this object.
+* `put(item)`: Include an item in the statistic.
+* `get()`: Get a specific value from the object, which varies depending on the object.
+* `clear()`: Clear out all items.
+* `summary()`: Get a object containing a summary of the object, which varies depending on the object. The fields returned are used to generate the trends of the HTML report graphs.
+
+In addition, these other methods are supported:
+
+* `Histogram.mean()`: Calculate the mean of the numbers in the histogram.
+* `Histogram.percentile(percentile)`: Calculate the given `percentile`, between 0 and 1, of the numbers in the histogram.
+* `Histogram.stddev()`: Standard deviation of the numbers in the histogram.
+* `LogFile.open()`: Open the file.
+* `LogFile.close()`: Close the file.
+* `Reportable.next()`: clear out the interval statistic for the next window.
+
+Refer to the `Statistics` section near line 910 of [nodeloadlib.js](http://github.com/benschmaus/nodeload/tree/master/nodeloadlib.js) for the return value of the `get()` and `summary()` functions for the different classes.
+
+TIPS AND TRICKS
+================
+
+Some handy features worth mentioning.
+
+1. **Examine and add to stats to the HTML page:**
+
+    addTest().stats and runTest().stats are maps:
+
+        { 'latency': Reportable(Histogram), 
+          'result-codes': Reportable(ResultsCounter},
+          'uniques': Reportable(Uniques), 
+          'concurrency': Reportable(Peak) }
+     
+    Put `Reportable` instances to this map to have it automatically updated each reporting interval. Create the `Reportable` with `addToHttpReport=true` to add a chart for it on the HTML status page. Or, set `Report.disableIntervalReporting=true` to only update `Reportable.cumulative` and not `Reportable.interval` each reporting interval.
