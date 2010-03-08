@@ -32,7 +32,7 @@ Add `require(./nodeloadlib.js)` and call `runTest()` or `addTest()/startTests()`
         }
     });
     
-This test will hit localhost:8080 with 20 concurrent connections for 10 minutes. Non-200 responses are logged to `results-{timestamp}-err.log`.  It also starts up an web server on localhost:8000 for the duration of the test which displays requests per second and latency statistics:
+This test will hit localhost:8080 with 20 concurrent connections for 10 minutes. During the test, a web server is started on localhost:8000, which displays requests per second and latency statistics. Non-200 responses will be logged to `results-{timestamp}-err.log`, statistics are regularly logged to `results-{timestamp}-stats.log`, and the summary page found at localhost:8000 is also written to `results-{timestamp}-summary.html`.
 
     $ node example.js         ## while running, browse to http://localhost:8000 to track the test
     Serving progress report on port 8000.
@@ -42,6 +42,8 @@ This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
     Finishing...
     Closed log files.
     Shutdown report server.
+
+Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a example of a full read+write test.
 
 
 CONFIGURATION
@@ -125,7 +127,7 @@ A "ramp" increases the load of a particular test over some period of time.  Sche
         delay: 60
     });
 
-Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a full example of a read+write test with a ramp.
+Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for an example of a full read+write test.
 
 **Test Definition:** The following object defines the parameters and defaults for a test, which is used by `addTest()` or `runTest()`:
 

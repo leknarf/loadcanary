@@ -633,7 +633,7 @@ function defaultProgressReport(stats) {
         stats[i].next();
     }
     out += "}";
-    STATS_LOG.put(out);
+    STATS_LOG.put(out + ",");
     qprint('.');
 
     if (progressSummaryEnabled) {
@@ -663,7 +663,6 @@ function summaryReport(statsList) {
             }
         }
     }
-    STATS_LOG.put("\n" + out);
     HTTP_REPORT.setText(out);
     writeReport();
 }
@@ -1242,12 +1241,18 @@ openAllLogs = function() {
         STATS_LOG = new LogFile('results-' + start + '-stats.log');
         ERROR_LOG = new LogFile('results-' + start + '-err.log');
         SUMMARY_HTML = 'results-' + start + '-summary.html';
+        
+        // stats log should be a proper JSON array: output initial "["
+        STATS_LOG.put("[");
     }
 
     logsOpen = true;
 }
 
 closeAllLogs = function() {
+    // stats log should be a proper JSON array: output final "]"
+    STATS_LOG.put("]");
+
     STATS_LOG.close();
     ERROR_LOG.close();
 
