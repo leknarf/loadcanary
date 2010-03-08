@@ -7,8 +7,8 @@
 // 3. node nodeload/examples/nodeloadlib-ex.js
 //
 // This example performs a micro-benchmark of Riak (http://riak.basho.com/), a key-value store,
-// running on localhost:8080. First, it first loads 2000 objects into the store as quickly as
-// possible. Then, it performs a 90% read + 10% update test at total request rate of 300 rps.
+// running on localhost:8098/riak. First, it first loads 2000 objects into the store as quickly
+// as possible. Then, it performs a 90% read + 10% update test at total request rate of 300 rps.
 // From minutes 5-8, the read load is increased by 100 rps. The test runs for 10 minutes.
 
 var sys = require('sys');
