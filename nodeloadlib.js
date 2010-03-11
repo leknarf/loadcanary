@@ -231,6 +231,8 @@ var SLAVES = {};
 var SLAVE_PING_PERIOD = 3000;
 var slavePingId = null;
 var REMOTE_FINISHED_CALLBACK = null;
+var REMOTE_STATS = {};
+var REMOTE_PROGRESS_JOB = null;
 
 remoteTest = function(spec) {
     var remoteFunName = "remote" + uid();
@@ -287,23 +289,36 @@ function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
     }
     
     slavePingId = setTimeout(remotePing, SLAVE_PING_PERIOD);
+    summaryStats = [REMOTE_STATS];
     REMOTE_FINISHED_CALLBACK = testsComplete(callback, stayAliveAfterDone);
+    REMOTE_PROGRESS_JOB = SCHEDULER.schedule({
+        fun: progressReportLoop(REMOTE_STATS),
+        rps: 1/TEST_DEFAULTS.reportInterval,
+        delay: TEST_DEFAULTS.reportInterval,
+        monitored: false
+    });
+    REMOTE_PROGRESS_JOB.start();
+    
 }
 
 function remoteProgress(host, port, stats) {
-    var progress = {slaveId: SLAVE_ID, stats: stats};
+    var report = {slaveId: SLAVE_ID, stats: stats};
     var client = http.createClient(port, host);
-    var s = JSON.stringify(progress);
+    var s = JSON.stringify(report);
     var req = client.request('POST', '/remote/progress', {'host': host, 'content-length': s.length});
     req.write(s);
     req.close();
 }
 
 function remoteSummary(host, port, stats) {
-    var progress = {slaveId: SLAVE_ID, stats: stats};
+    for (var i in stats) {
+        remoteProgress(MASTER_HOST, MASTER_PORT, stats[i]);
+    }
+    
+    var progress = {slaveId: SLAVE_ID};
     var client = http.createClient(port, host);
     var s = JSON.stringify(progress);
-    var req = client.request('POST', '/remote/summary', {'host': host, 'content-length': s.length});
+    var req = client.request('POST', '/remote/complete', {'host': host, 'content-length': s.length});
     req.write(s);
     req.close();
 }
@@ -316,7 +331,10 @@ function remoteCheckFinished() {
         }
     }
     if (done) {
+        qputs("Remote tests complete.");
+        
         clearTimeout(slavePingId);
+        REMOTE_PROGRESS_JOB.stop();
         var callback = REMOTE_FINISHED_CALLBACK;
         
         REMOTE_FINISHED_CALLBACK = null;
@@ -379,18 +397,30 @@ function serveRemote(url, req, res) {
         res.sendHeader(200, {"Content-Length": 0});
         res.close();
     } else if (url == "/remote/progress") {
-        readBody(req, function(stats) {
-            stats = JSON.parse(stats);
-            qputs("Report from " + stats.slaveId);
-            SLAVES[stats.slaveId] = "running";
+        readBody(req, function(report) {
+            report = JSON.parse(report);
+            SLAVES[report.slaveId] = "running";
+            for (var i in report.stats) {
+                var stat = report.stats[i].name;
+                if (REMOTE_STATS[stat] == null) {
+                    var backend = getStats(report.stats[i].interval.type);
+                    if (backend == null) {
+                        qputs("WARN: unrecognized stats type: " + report.stats[i].interval.type);
+                    }
+                    REMOTE_STATS[stat] = new Reportable(backend, stat, report.stats[i].addToHttpReport);
+                }
+                if (REMOTE_STATS[stat] != null) {
+                    REMOTE_STATS[stat].merge(report.stats[i].interval);
+                }
+            }
             res.sendHeader(200, {"Content-Length": 0});
             res.close();
         });
-    } else if (url == "/remote/summary") {
-        readBody(req, function(stats) {
-            stats = JSON.parse(stats);
-            qputs(stats.slaveId + " done.");
-            SLAVES[stats.slaveId] = "done";
+    } else if (url == "/remote/complete") {
+        readBody(req, function(report) {
+            report = JSON.parse(report);
+            qputs(report.slaveId + " done.");
+            SLAVES[report.slaveId] = "done";
             remoteCheckFinished();
             res.sendHeader(200, {"Content-Length": 0});
             res.close();
@@ -1131,6 +1161,7 @@ Histogram = function(numBuckets) {
     // lets us store latencies up to 5 seconds in the main array
     if (numBuckets == null)
         numBuckets = 5000;
+    this.type = "Histogram";
     this.size = numBuckets;
     this.clear();
 }
@@ -1223,10 +1254,30 @@ Histogram.prototype =  {
             "95%": this.percentile(.95),
             "99%": this.percentile(.99),
             max: this.max};
+    },
+    merge: function(other) {
+        if (this.items.length != other.items.length) {
+            throw "Incompatible histograms";
+        }
+
+        this.length += other.length;
+        this.sum += other.sum;
+        this.min = (other.min < this.min || this.min == -1) ? other.min : this.min;
+        this.max = (other.max > this.max || this.max == -1) ? other.max : this.max;
+        for (var i = 0; i < this.items.length; i++) {
+            if (this.items[i] != null) {
+                this.items[i] += other.items[i];
+            } else {
+                this.items[i] = other.items[i];
+            }
+        }
+        this.extra += this.extra.concat(other.extra);
+        this.sorted = false;
     }
 }
 
 Accumulator = function() {
+    this.type = "Accumulator";
     this.total = 0;
     this.length = 0;
 }
@@ -1244,10 +1295,15 @@ Accumulator.prototype = {
     },
     summary: function() {
         return { total: this.total };
+    },
+    merge: function(other) {
+        this.total += other.total;
+        this.length += other.length;
     }
 }
 
 ResultsCounter = function() {
+    this.type = "ResultsCounter";
     this.start = new Date();
     this.items = {};
     this.items.total = 0;
@@ -1261,7 +1317,6 @@ ResultsCounter.prototype = {
             this.items[item] = 1;
         }
         this.length++;
-        this.items.total = this.length;
     },
     get: function(item) {
         if (item.length > 0) {
@@ -1278,15 +1333,26 @@ ResultsCounter.prototype = {
         this.start = new Date();
         this.items = {};
         this.length = 0;
-        this.items.total = 0;
     },
     summary: function() {
+        this.items.total = this.length;
         this.items.rps = (this.length / ((new Date() - this.start) / 1000)).toFixed(1);
         return this.items;
+    },
+    merge: function(other) {
+        for (var i in other.items) {
+            if (this.items[i] != null) {
+                this.items[i] += other.items[i];
+            } else {
+                this.items[i] = other.items[i];
+            }
+        }
+        this.length += other.length;
     }
 }
 
 Uniques = function() {
+    this.type = "Uniques";
     this.start = new Date();
     this.items = {};
     this.uniques = 0;
@@ -1312,10 +1378,22 @@ Uniques.prototype = {
     },
     summary: function() {
         return {total: this.length, uniqs: this.uniques};
+    },
+    merge: function(other) {
+        for (var i in other.items) {
+            if (this.items[i] != null) {
+                this.items[i] += other.items[i];
+            } else {
+                this.items[i] = other.items[i];
+                this.uniques++;
+            }
+        }
+        this.length += other.length;
     }
 }
 
 Peak = function() {
+    this.type = "Peak";
     this.peak = 0;
     this.length = 0;
 }
@@ -1334,10 +1412,17 @@ Peak.prototype = {
     },
     summary: function() {
         return { max: this.peak };
+    },
+    merge: function(other) {
+        if (this.peak < other.peak) {
+            this.peak = other.peak;
+        }
+        this.length += other.length;
     }
 }
 
 Rate = function() {
+    type = "Rate";
     this.start = new Date();
     this.length = 0;
 }
@@ -1354,10 +1439,14 @@ Rate.prototype = {
     },
     summary: function() {
         return { rps: this.get() };
+    },
+    merge: function(other) {
+        this.length += other.length;
     }
 }
 
 LogFile = function(filename) {
+    this.type = "LogFile";
     this.length = 0;
     this.filename = filename;
     this.open();
@@ -1392,7 +1481,10 @@ LogFile.prototype = {
     }
 }
 
-NullLog = function() { this.length = 0; }
+NullLog = function() { 
+    this.type = "NullLog";
+    this.length = 0;
+}
 NullLog.prototype = {
     put: function(item) { /* nop */ },
     get: function(item) { return null; },
@@ -1406,10 +1498,13 @@ Reportable = function(backend, name, addToHttpReport) {
     if (name == null)
         name = "";
 
+    this.type = "Reportable:" + backend;
     this.name = name;
     this.length = 0;
     this.interval = new backend();
     this.cumulative = new backend();
+    this.addToHttpReport = addToHttpReport;
+    
     if (addToHttpReport) {
         HTTP_REPORT.addChart(this.name);
     }
@@ -1435,7 +1530,27 @@ Reportable.prototype = {
     },
     summary: function() {
         return { interval: this.interval.summary(), cumulative: this.cumulative.summary() };
+    },
+    merge: function(other) {
+        // other should be an instance of backend, NOT Reportable.
+        this.interval.merge(other);
+        this.cumulative.merge(other);
     }
+}
+
+function getStats(type) {
+    types = {
+        "Histogram": Histogram, 
+        "Accumulator": Accumulator, 
+        "ResultsCounter": ResultsCounter,
+        "Uniques": Uniques,
+        "Peak": Peak,
+        "Rate": Rate,
+        "LogFile": LogFile,
+        "NullLog": NullLog,
+        "Reportable": Reportable
+    };
+    return types[type];
 }
 
 
