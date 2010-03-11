@@ -4,6 +4,7 @@ OVERVIEW
 `nodeloadlib` is a [node.js](http://nodejs.org/) library containing building blocks to programmatically create load tests for HTTP services.  The components are:
 
 * High-level load testing interface
+* Distributed testing
 * A scheduler which executes functions at a given rate
 * Event-based loops
 * Statistics classes
@@ -167,6 +168,42 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
         clientsPerStep: 1,                  // The number of connections to add to the test at each step.
         delay: 0                            // Number of seconds to wait before ramping up. 
     }
+
+
+
+## Distributed Testing ##
+
+Functions for distributing tests across multiple slave `nodeload` instances.
+
+**Functions:**
+
+* `remoteTest(spec)`: Return a test to be scheduled with `remoteStart(...)` (`spec` uses same format as `addTest(spec)`).
+* `remoteStart(master, slaves, tests, callback, stayAliveAfterDone)`: Run tests on specified slaves.
+* `remoteStartFile(master, slaves, filename, callback, stayAliveAfterDone)`: Execute a `.js` file on specified slaves.
+
+Create tests in using `remoteTest(spec)` with the same `spec` fields in the **Test Definition** section above. Pass the created tests as a list to `remoteStart(...)` to execute them on remote `nodeload` instances. `master` must be the `"host:port"` of the machine executing `remoteStart(...)`, which also receives and aggregates statistics from the slaves. The address should be reachable by the slaves, or use `master=null` to disable reports from the slaves.
+
+    // This script must be run on master:8000, which will aggregate results. Each slave 
+    // will GET http://internal-service:8080/ at 100 rps.
+    var t1 = remoteTest({
+        name: "Distributed test",
+        host: 'internal-service',
+        port: 8080,
+        timeLimit: 20,
+        targetRps: 100
+    });
+    remoteStart('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], [t1]);
+
+Alternatively, an existing `nodeload` load test script file can be distributed:
+
+    // The file /path/to/load-test.js should contain valid javascript and can use any nodeloadlib functions
+    remoteStartFile('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], '/path/to/load-test.js');
+
+Be sure the start the slave instances before running the master.
+
+    $ node nodeloadlib.js       # Run on each slave machine
+
+When the remote tests complete, the master instance will call the `callback` parameter, which should be a function. It then automatically terminates after 3 seconds unless the parameter `stayAliveAfterDone==true`.
 
 
 

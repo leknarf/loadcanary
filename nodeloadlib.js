@@ -252,18 +252,21 @@ remoteStart = function(master, slaves, tests, callback, stayAliveAfterDone) {
         remoteFun += tests[i];
     }
     remoteFun += "startTests();\n";
-    remoteSubmit(master, slaves, remoteFun, testsComplete(callback, stayAliveAfterDone));
+    remoteSubmit(master, slaves, remoteFun, callback, stayAliveAfterDone);
 }
 
 remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDone) {
     fs.readFile(filename, function (err, data) {
         if (err != null) throw err;
-        remoteSubmit(master, slaves, data, testsComplete(callback, stayAliveAfterDone));
+        remoteSubmit(master, slaves, data, callback, stayAliveAfterDone);
     });
 }
 
-function remoteSubmit(master, slaves, fun, callback) {
-    var masterhostandport = master.split(":");
+function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
+    var masterhostandport = [null, null];
+    if (master != null) {
+        masterhostandport = master.split(":");
+    }
 
     var funName = "remote" + uid();
     var fun = 
@@ -272,7 +275,7 @@ function remoteSubmit(master, slaves, fun, callback) {
             fun + 
         "};\n" + 
         funName + "();\n";
-
+    
     for (var i in slaves) {
         var slaveId = funName + "@" + slaves[i];
         var slaveFun = fun + "SLAVE_ID = '" + slaveId + "';\n";
@@ -284,7 +287,7 @@ function remoteSubmit(master, slaves, fun, callback) {
     }
     
     slavePingId = setInterval(remotePing, SLAVE_PING_PERIOD);
-    REMOTE_FINISHED_CALLBACK = callback;
+    REMOTE_FINISHED_CALLBACK = testsComplete(callback, stayAliveAfterDone);
 }
 
 function remoteProgress(host, port, stats) {
