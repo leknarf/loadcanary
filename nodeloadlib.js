@@ -281,12 +281,12 @@ function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
         var slaveFun = fun + "SLAVE_ID = '" + slaveId + "';\n";
         var hostandport = slaves[i].split(":");
         var r = http.createClient(hostandport[1], hostandport[0]).request('POST', '/remote', {'host': hostandport[0], 'content-length': slaveFun.length});
-        SLAVES[slaveId] = "started";
+        SLAVES[slaveId] = "running";
         r.write(slaveFun);
         r.close();
     }
     
-    slavePingId = setInterval(remotePing, SLAVE_PING_PERIOD);
+    slavePingId = setTimeout(remotePing, SLAVE_PING_PERIOD);
     REMOTE_FINISHED_CALLBACK = testsComplete(callback, stayAliveAfterDone);
 }
 
@@ -311,12 +311,12 @@ function remoteSummary(host, port, stats) {
 function remoteCheckFinished() {
     var done = true;
     for (var i in SLAVES) {
-        if (SLAVES[i] != "done") {
+        if (SLAVES[i] != "done" && SLAVES[i] != "error") {
             done = false;
         }
     }
     if (done) {
-        clearInterval(slavePingId);
+        clearTimeout(slavePingId);
         var callback = REMOTE_FINISHED_CALLBACK;
         
         REMOTE_FINISHED_CALLBACK = null;
@@ -327,36 +327,37 @@ function remoteCheckFinished() {
     }
 }
 function remotePing() {
-    var oks = {}
-    var reportHealth = function() {
+    var verifyPing = function() {
         var failures = [];
         for (var i in SLAVES) {
-            if (SLAVES[i] != "done") {
-                var ok = false;
-                for (var j in oks)
-                    if (i == j)
-                        ok = oks[j];
-                if (!ok)
-                    failures.push(i);
+            if (SLAVES[i] == "ping") {
+                failures.push(i);
             }
         }
         if (failures.length > 0) {
-            qputs("WARN: removing unresponsive slaves: " + failures);
-            for (var i in failures)
-                SLAVES[failures[i]] = "done";
+            qputs("WARN: detected unresponsive slaves: " + failures);
+            for (var i in failures) {
+                SLAVES[failures[i]] = "error";
+            }
             remoteCheckFinished();
         }
+        slavePingId = setTimeout(remotePing, 100);
     }
     for (var i in SLAVES) (function(i) {
-        if (SLAVES[i] != "done") {
+        if (SLAVES[i] == "running") {
+            SLAVES[i] = "ping";
             var slave = i.split("@");
             var hostandport = slave[1].split(":");
             var r = http.createClient(hostandport[1], hostandport[0]).request('GET', '/ping', {'host': hostandport[0], 'content-length': 0});
-            r.addListener('response', function(response) { oks[i] = (response.statusCode == 200) });
+            r.addListener('response', function(response) { 
+                if (SLAVES[i] == "ping") {
+                    SLAVES[i] = "running" 
+                }
+            });
             r.close();
         }
     })(i);
-    setTimeout(reportHealth, SLAVE_PING_PERIOD);
+    slavePingId = setTimeout(verifyPing, SLAVE_PING_PERIOD);
 }
 
 function serveRemote(url, req, res) {
@@ -381,6 +382,7 @@ function serveRemote(url, req, res) {
         readBody(req, function(stats) {
             stats = JSON.parse(stats);
             qputs("Report from " + stats.slaveId);
+            SLAVES[stats.slaveId] = "running";
             res.sendHeader(200, {"Content-Length": 0});
             res.close();
         });
@@ -388,11 +390,7 @@ function serveRemote(url, req, res) {
         readBody(req, function(stats) {
             stats = JSON.parse(stats);
             qputs(stats.slaveId + " done.");
-            for (var i in SLAVES) {
-                if (i == stats.slaveId) {
-                    SLAVES[i] = "done";
-                }
-            }
+            SLAVES[stats.slaveId] = "done";
             remoteCheckFinished();
             res.sendHeader(200, {"Content-Length": 0});
             res.close();
