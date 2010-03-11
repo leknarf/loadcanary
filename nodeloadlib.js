@@ -139,24 +139,12 @@ addRamp = function(spec) {
 
 startTests = function(callback, stayAliveAfterDone) {
     HTTP_REPORT.setText("");
-
-    function finish() {
-        qprint('done.\n');
-        summaryReport(summaryStats);
-        if (!stayAliveAfterDone) {
-            // End process if no more tests are started within 3 seconds.
-            endTestTimeoutId = setTimeout(endTest, 3000);
-        }
-        if (callback != null) {
-            callback();
-        }
-    }
-    SCHEDULER.startAll(finish);
+    SCHEDULER.startAll(testsComplete(callback, stayAliveAfterDone));
 }
 
-runTest = function(spec, callback) {
+runTest = function(spec, callback, stayAliveAfterDone) {
     var t = addTest(spec);
-    startTests(callback);
+    startTests(callback, stayAliveAfterDone);
     return t;
 }
 
@@ -206,6 +194,23 @@ traceableRequest = function(client, method, path, headers, body) {
     return request;
 }
 
+function testsComplete(callback, stayAliveAfterDone) {
+    return function() {
+        qprint('done.\n');
+        summaryReport(summaryStats);
+        if (MASTER_HOST != null && MASTER_PORT != null) {
+            // Report finish if this is a slave instance
+            remoteSummary(MASTER_HOST, MASTER_PORT, summaryStats);
+        } else if (!stayAliveAfterDone) {
+            // End process if no more tests are started within 3 seconds.
+            endTestTimeoutId = setTimeout(endTest, 3000);
+        }
+        if (callback != null) {
+            callback();
+        }
+    }
+}
+
 function defaults(spec, defaults) {
     for (var i in defaults) {
         if (spec[i] == null) {
@@ -214,6 +219,186 @@ function defaults(spec, defaults) {
     }
 }
 
+
+
+// -----------------------------------------
+// Distributed testing
+// -----------------------------------------
+var MASTER_HOST = null;
+var MASTER_PORT = null;
+var SLAVE_ID = "";
+var SLAVES = {};
+var SLAVE_PING_PERIOD = 3000;
+var slavePingId = null;
+var REMOTE_FINISHED_CALLBACK = null;
+
+remoteTest = function(spec) {
+    var remoteFunName = "remote" + uid();
+    var remoteFun = 
+        "var " + remoteFunName + " = function() {\n" +
+            "var remoteSpec = JSON.parse('" + JSON.stringify(spec) + "');\n" +
+            "remoteSpec.requestGenerator = " + spec.requestGenerator + ";\n" +
+            "remoteSpec.requestLoop = " + spec.requestLoop + ";\n" +
+            "remoteSpec.reportFun = " + spec.reportFun + ";\n" +
+            "addTest(remoteSpec);\n" +
+        "};\n" +
+        remoteFunName + "();\n";
+    return remoteFun;
+}
+
+remoteStart = function(master, slaves, tests, callback, stayAliveAfterDone) {
+    var remoteFun = "";
+    for (var i in tests) {
+        remoteFun += tests[i];
+    }
+    remoteFun += "startTests();\n";
+    remoteSubmit(master, slaves, remoteFun, testsComplete(callback, stayAliveAfterDone));
+}
+
+remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDone) {
+    fs.readFile(filename, function (err, data) {
+        if (err != null) throw err;
+        remoteSubmit(master, slaves, data, testsComplete(callback, stayAliveAfterDone));
+    });
+}
+
+function remoteSubmit(master, slaves, fun, callback) {
+    var masterhostandport = master.split(":");
+
+    var funName = "remote" + uid();
+    var fun = 
+        "MASTER_HOST = '" + masterhostandport[0] + "'; MASTER_PORT = " + masterhostandport[1] + ";\n" +
+        "var " + funName + " = function() {\n" + 
+            fun + 
+        "};\n" + 
+        funName + "();\n";
+
+    for (var i in slaves) {
+        var slaveId = funName + "@" + slaves[i];
+        var slaveFun = fun + "SLAVE_ID = '" + slaveId + "';\n";
+        var hostandport = slaves[i].split(":");
+        var r = http.createClient(hostandport[1], hostandport[0]).request('POST', '/remote', {'host': hostandport[0], 'content-length': slaveFun.length});
+        SLAVES[slaveId] = "started";
+        r.write(slaveFun);
+        r.close();
+    }
+    
+    slavePingId = setInterval(remotePing, SLAVE_PING_PERIOD);
+    REMOTE_FINISHED_CALLBACK = callback;
+}
+
+function remoteProgress(host, port, stats) {
+    var progress = {slaveId: SLAVE_ID, stats: stats};
+    var client = http.createClient(port, host);
+    var s = JSON.stringify(progress);
+    var req = client.request('POST', '/remote/progress', {'host': host, 'content-length': s.length});
+    req.write(s);
+    req.close();
+}
+
+function remoteSummary(host, port, stats) {
+    var progress = {slaveId: SLAVE_ID, stats: stats};
+    var client = http.createClient(port, host);
+    var s = JSON.stringify(progress);
+    var req = client.request('POST', '/remote/summary', {'host': host, 'content-length': s.length});
+    req.write(s);
+    req.close();
+}
+
+function remoteCheckFinished() {
+    var done = true;
+    for (var i in SLAVES) {
+        if (SLAVES[i] != "done") {
+            done = false;
+        }
+    }
+    if (done) {
+        clearInterval(slavePingId);
+        var callback = REMOTE_FINISHED_CALLBACK;
+        
+        REMOTE_FINISHED_CALLBACK = null;
+        SLAVES = [];
+        if (callback != null) {
+            callback();
+        }
+    }
+}
+function remotePing() {
+    var oks = {}
+    var reportHealth = function() {
+        var failures = [];
+        for (var i in SLAVES) {
+            if (SLAVES[i] != "done") {
+                var ok = false;
+                for (var j in oks)
+                    if (i == j)
+                        ok = oks[j];
+                if (!ok)
+                    failures.push(i);
+            }
+        }
+        if (failures.length > 0) {
+            qputs("WARN: removing unresponsive slaves: " + failures);
+            for (var i in failures)
+                SLAVES[failures[i]] = "done";
+            remoteCheckFinished();
+        }
+    }
+    for (var i in SLAVES) (function(i) {
+        if (SLAVES[i] != "done") {
+            var slave = i.split("@");
+            var hostandport = slave[1].split(":");
+            var r = http.createClient(hostandport[1], hostandport[0]).request('GET', '/ping', {'host': hostandport[0], 'content-length': 0});
+            r.addListener('response', function(response) { oks[i] = (response.statusCode == 200) });
+            r.close();
+        }
+    })(i);
+    setTimeout(reportHealth, SLAVE_PING_PERIOD);
+}
+
+function serveRemote(url, req, res) {
+    var readBody = function(req, callback) {
+        var body = '';
+        req.addListener('data', function(chunk) { body += chunk });
+        req.addListener('end', function() { callback(body) });
+    }
+    if (url == "/remote") {
+        readBody(req, function(remoteFun) {
+            qputs("Starting remote test:\n" + remoteFun);
+            eval(remoteFun);
+            res.sendHeader(200, {"Content-Length": 0});
+            res.close();
+        });
+    } else if (url == "/remote/stop") {
+        qprint("\nReceived remote stop...");
+        SCHEDULER.stopAll();
+        res.sendHeader(200, {"Content-Length": 0});
+        res.close();
+    } else if (url == "/remote/progress") {
+        readBody(req, function(stats) {
+            stats = JSON.parse(stats);
+            qputs("Report from " + stats.slaveId);
+            res.sendHeader(200, {"Content-Length": 0});
+            res.close();
+        });
+    } else if (url == "/remote/summary") {
+        readBody(req, function(stats) {
+            stats = JSON.parse(stats);
+            qputs(stats.slaveId + " done.");
+            for (var i in SLAVES) {
+                if (i == stats.slaveId) {
+                    SLAVES[i] = "done";
+                }
+            }
+            remoteCheckFinished();
+            res.sendHeader(200, {"Content-Length": 0});
+            res.close();
+        });
+    } else {
+        res.sendHeader(404, {"Content-Length": "0"});
+        res.close();
+    }
+}
 
 
 // -----------------------------------------
@@ -276,7 +461,7 @@ Scheduler.prototype = {
     },
     checkFinished: function() {
         for (var i in this.jobs) {
-            if (this.jobs[i].monitored && !this.jobs[i].done) {
+            if (this.jobs[i].monitored && this.jobs[i].started && !this.jobs[i].done) {
                 return false;
             }
         }
@@ -313,7 +498,6 @@ function Job(spec) {
     
     var job = this;
     this.warningTimeoutId = setTimeout(function() { qputs("WARN: a job" + job.id + " was not started; Job.start() called?") }, 3000);
-    this.warningTimeoutId.id = this.id;
 }
 Job.prototype = {
     start: function(callback) {
@@ -323,8 +507,8 @@ Job.prototype = {
         if (this.fun == null)
             qputs("WARN: scheduling a null loop");
         if (this.started)
-            return this;
-
+            return;
+            
         var job = this;
         var fun = this.fun;
         var conditions = [];
@@ -373,6 +557,8 @@ Job.prototype = {
                 job.callback();
             }
         });
+        
+        this.started = true;
     },
     stop: function() {
         if (this.loop != null) {
@@ -501,11 +687,22 @@ requestGeneratorLoop = function(generator) {
             qputs('WARN: HTTP request is null; did you forget to call return request?');
             loopfun(null);
         } else {
+            var timedOut = false;
+            var timeoutId = null;
+            var id = uid();
+            if (request.timeout != null) {
+                timeoutId = setTimeout(function() {
+                    timedOut = true;
+                    loopFun({req: request, res: {statusCode: 0}});
+                }, request.timeout);
+            }
             request.addListener('response', function(response) {
-                if (response == null) {
-                    qputs('WARN: HTTP response is null; did you forget to call loopFun(response)?');
+                if (!timedOut) {
+                    if (timeoutId != null) {
+                        clearTimeout(timeoutId);
+                    }
+                    loopFun({req: request, res: response});
                 }
-                loopFun({req: request, res: response});
             });
             request.close();
         }
@@ -518,9 +715,8 @@ requestGeneratorLoop = function(generator) {
 // Monitoring loops
 // ------------------------------------
 monitorLatenciesLoop = function(latencies, fun) {
-    var startTime;
-    var start = function() { startTime = new Date() };
-    var finish = function() { latencies.put(new Date() - startTime) };
+    var start = function() { return new Date() }
+    var finish = function(result, start) { latencies.put(new Date() - start) };
     return loopWrapper(fun, start, finish);
 }
 
@@ -585,15 +781,16 @@ monitorUniqueUrlsLoop = function(uniqs, fun) {
 
 loopWrapper = function(fun, start, finish) {
     return function(loopFun, args) {
+        var startRes;
         if (start != null) {
-            start(args);
+            startRes = start(args);
         }
         var finishFun = function(result) {
             if (result == null) {
                 qputs('Function result is null; did you forget to call loopFun(result)?');
             } else {
                 if (finish != null) {
-                    finish(result);
+                    finish(result, startRes);
                 }
             }
             loopFun(result);
@@ -606,6 +803,8 @@ progressReportLoop = function(stats, progressFun) {
     return function(loopFun) {
         if (progressFun != null)
             progressFun(stats);
+        if (MASTER_HOST != null && MASTER_PORT != null)
+            remoteProgress(MASTER_HOST, MASTER_PORT, stats);
         defaultProgressReport(stats);
         loopFun();
     }
@@ -869,16 +1068,31 @@ startHttpServer = function(port) {
     qputs('Serving progress report on port ' + port + '.');
     HTTP_SERVER = http.createServer(function (req, res) {
         var now = new Date();
-        if (req.url == "/") {
-            serveReport(HTTP_REPORT, res);
-        } else if (req.url.match("^/data/main/report-text")) {
-            res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
-            res.write(HTTP_REPORT.text);
-            res.close();
-        } else if (req.url.match("^/data/main/")) {
-            serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
+        if (req.method == "GET") {
+            if (req.url == "/") {
+                serveReport(HTTP_REPORT, res);
+            } else if (req.url == "/ping") {
+                res.sendHeader(200, {"Content-Length": 0});
+                res.close();
+            } else if (req.url.match("^/data/main/report-text")) {
+                res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
+                res.write(HTTP_REPORT.text);
+                res.close();
+            } else if (req.url.match("^/data/main/")) {
+                serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
+            } else {
+                serveFile("." + req.url, res);
+            }
+        } else if (req.method == "POST") {
+            if (req.url.match("^/remote")) {
+                serveRemote(req.url, req, res);
+            } else {
+                res.sendHeader(404, {"Content-Length": "0"});
+                res.close();
+            }
         } else {
-            serveFile("." + req.url, res);
+            res.sendHeader(405, {"Content-Length": "0"});
+            res.close();
         }
     });
     HTTP_SERVER.listen(port);
