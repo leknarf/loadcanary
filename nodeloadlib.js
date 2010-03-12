@@ -1,3 +1,6 @@
+if (typeof _NODELOADLIB != "undefined") return;
+_NODELOADLIB = 1
+
 var sys = require('sys');
 var http = require('http');
 var fs = require('fs');
@@ -1640,8 +1643,12 @@ if (typeof SCHEDULER == "undefined")
 if (typeof HTTP_REPORT == "undefined")
     HTTP_REPORT = new Report("main");
 
-if (typeof HTTP_SERVER_PORT == "undefined")
+if (typeof HTTP_SERVER_PORT == "undefined") {
     HTTP_SERVER_PORT = 8000;
+    if (process.env['HTTP_SERVER_PORT'] != null) {
+        HTTP_SERVER_PORT = Number(process.env['HTTP_SERVER_PORT']);
+    }
+}
     
 if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
     startHttpServer(HTTP_SERVER_PORT);
