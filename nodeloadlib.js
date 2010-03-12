@@ -198,9 +198,9 @@ function testsComplete(callback, stayAliveAfterDone) {
     return function() {
         qprint('done.\n');
         summaryReport(summaryStats);
-        if (MASTER_HOST != null && MASTER_PORT != null) {
-            // Report finish if this is a slave instance
-            remoteSummary(MASTER_HOST, MASTER_PORT, summaryStats);
+        if (SLAVE_STATUS != null) {
+            // Report finish and remain alive if this is a slave instance
+            SLAVE_STATUS.reportFinish(summaryStats);
         } else if (!stayAliveAfterDone) {
             // End process if no more tests are started within 3 seconds.
             endTestTimeoutId = setTimeout(endTest, 3000);
@@ -224,28 +224,18 @@ function defaults(spec, defaults) {
 // -----------------------------------------
 // Distributed testing
 // -----------------------------------------
-var MASTER_HOST = null;
-var MASTER_PORT = null;
-var SLAVE_ID = "";
-var SLAVES = {};
+var SLAVE_STATUS = null;
+var WORKER_POOL = null;
 var SLAVE_PING_PERIOD = 3000;
-var slavePingId = null;
-var REMOTE_FINISHED_CALLBACK = null;
-var REMOTE_STATS = {};
-var REMOTE_PROGRESS_JOB = null;
 
 remoteTest = function(spec) {
-    var remoteFunName = "remote" + uid();
-    var remoteFun = 
-        "var " + remoteFunName + " = function() {\n" +
-            "var remoteSpec = JSON.parse('" + JSON.stringify(spec) + "');\n" +
-            "remoteSpec.requestGenerator = " + spec.requestGenerator + ";\n" +
-            "remoteSpec.requestLoop = " + spec.requestLoop + ";\n" +
-            "remoteSpec.reportFun = " + spec.reportFun + ";\n" +
-            "addTest(remoteSpec);\n" +
-        "};\n" +
-        remoteFunName + "();\n";
-    return remoteFun;
+    return "(function() {\n" +
+            "  var remoteSpec = JSON.parse('" + JSON.stringify(spec) + "');\n" +
+            "  remoteSpec.requestGenerator = " + spec.requestGenerator + ";\n" +
+            "  remoteSpec.requestLoop = " + spec.requestLoop + ";\n" +
+            "  remoteSpec.reportFun = " + spec.reportFun + ";\n" +
+            "  addTest(remoteSpec);\n" +
+            "})();\n";
 }
 
 remoteStart = function(master, slaves, tests, callback, stayAliveAfterDone) {
@@ -265,117 +255,141 @@ remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDon
 }
 
 function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
-    var masterhostandport = [null, null];
-    if (master != null) {
-        masterhostandport = master.split(":");
-    }
-
-    var funName = "remote" + uid();
-    var fun = 
-        "MASTER_HOST = '" + masterhostandport[0] + "'; MASTER_PORT = " + masterhostandport[1] + ";\n" +
-        "var " + funName + " = function() {\n" + 
-            fun + 
-        "};\n" + 
-        funName + "();\n";
-    
-    for (var i in slaves) {
-        var slaveId = funName + "@" + slaves[i];
-        var slaveFun = fun + "SLAVE_ID = '" + slaveId + "';\n";
-        var hostandport = slaves[i].split(":");
-        var r = http.createClient(hostandport[1], hostandport[0]).request('POST', '/remote', {'host': hostandport[0], 'content-length': slaveFun.length});
-        SLAVES[slaveId] = "running";
-        r.write(slaveFun);
-        r.close();
-    }
-    
-    slavePingId = setTimeout(remotePing, SLAVE_PING_PERIOD);
-    summaryStats = [REMOTE_STATS];
-    REMOTE_FINISHED_CALLBACK = testsComplete(callback, stayAliveAfterDone);
-    REMOTE_PROGRESS_JOB = SCHEDULER.schedule({
-        fun: progressReportLoop(REMOTE_STATS),
-        rps: 1/TEST_DEFAULTS.reportInterval,
-        delay: TEST_DEFAULTS.reportInterval,
-        monitored: false
-    });
-    REMOTE_PROGRESS_JOB.start();
-    
+    WORKER_POOL = new RemoteWorkerPool(master, slaves);
+    WORKER_POOL.fun = fun;
+    WORKER_POOL.start(callback, stayAliveAfterDone);
 }
 
-function remoteProgress(host, port, stats) {
-    var report = {slaveId: SLAVE_ID, stats: stats};
-    var client = http.createClient(port, host);
-    var s = JSON.stringify(report);
-    var req = client.request('POST', '/remote/progress', {'host': host, 'content-length': s.length});
-    req.write(s);
-    req.close();
+// Called to convert this nodeload instance into a slave
+function registerSlave(id, master) {
+    SLAVE_STATUS = new RemoteSlave(id, master);
 }
 
-function remoteSummary(host, port, stats) {
-    for (var i in stats) {
-        remoteProgress(MASTER_HOST, MASTER_PORT, stats[i]);
-    }
-    
-    var progress = {slaveId: SLAVE_ID};
-    var client = http.createClient(port, host);
-    var s = JSON.stringify(progress);
-    var req = client.request('POST', '/remote/complete', {'host': host, 'content-length': s.length});
-    req.write(s);
-    req.close();
+function RemoteSlave(id, master) {
+    var master = (master == null) ? ["", 0] : master.split(":");
+    this.id = id;
+    this.masterhost = master[0];
+    this.master = http.createClient(master[1], master[0]);
 }
-
-function remoteCheckFinished() {
-    var done = true;
-    for (var i in SLAVES) {
-        if (SLAVES[i] != "done" && SLAVES[i] != "error") {
-            done = false;
+RemoteSlave.prototype = {
+    sendReport: function(url, object) {
+        var s = JSON.stringify(object);
+        var req = this.master.request('POST', url, {'host': this.masterhost, 'content-length': s.length});
+        req.write(s);
+        req.close();
+    },
+    reportProgress: function(stats) {
+        this.sendReport('/remote/progress', {slaveId: this.id, stats: stats});
+    },
+    reportFinish: function(stats) {
+        for (var i in stats) {
+            this.reportProgress(stats[i]);
         }
+        this.sendReport('/remote/finish', {slaveId: this.id});
     }
-    if (done) {
+}
+
+function RemoteWorkerPool(master, slaves) {
+    this.master = master;
+    this.slaves = {};
+    this.fun = null;
+    this.callback = null;
+    this.pingId = null;
+    this.stats = {};
+    this.progressJob = null;
+
+    for (var i in slaves) {
+        var slave = slaves[i].split(":");
+        this.slaves[slaves[i]] = {
+            state: "notstarted",
+            host: slave[0], 
+            client: http.createClient(slave[1], slave[0])
+        };
+    }
+}
+RemoteWorkerPool.prototype = {
+    start: function(callback, stayAliveAfterDone) {
+        var fun = "(function() {" + this.fun + "})();";
+        for (var i in this.slaves) {
+            var slave = this.slaves[i];
+            var slaveFun = "registerSlave('" + i + "','" + this.master + "');\n" + fun;
+            var r = slave.client.request('POST', '/remote', {'host': slave.host, 'content-length': slaveFun.length});
+            r.write(slaveFun);
+            r.close();
+            slave.state = "running";
+        }
+
+        var worker = this;
+        this.pingId = setTimeout(function() { worker.sendPings() }, SLAVE_PING_PERIOD);
+        this.callback = testsComplete(callback, stayAliveAfterDone);
+        this.progressJob = SCHEDULER.schedule({
+            fun: progressReportLoop(this.stats),
+            rps: 1/TEST_DEFAULTS.reportInterval,
+            delay: TEST_DEFAULTS.reportInterval,
+            monitored: false
+        });
+        this.progressJob.start();
+        summaryStats = [this.stats];
+    },
+    checkFinished: function() {
+        for (var i in this.slaves) {
+            if (this.slaves[i].state != "done" && this.slaves[i].state != "error") {
+                return;
+            }
+        }
         qputs("Remote tests complete.");
         
-        clearTimeout(slavePingId);
-        REMOTE_PROGRESS_JOB.stop();
-        var callback = REMOTE_FINISHED_CALLBACK;
-        
-        REMOTE_FINISHED_CALLBACK = null;
-        SLAVES = [];
+        var callback = this.callback;
+        clearTimeout(this.pingId);
+        this.progressJob.stop();
+        this.callback = null;
+        this.slaves = {};
         if (callback != null) {
             callback();
         }
-    }
-}
-function remotePing() {
-    var verifyPing = function() {
-        var failures = [];
-        for (var i in SLAVES) {
-            if (SLAVES[i] == "ping") {
-                failures.push(i);
+    },
+    sendPings: function() {
+        var worker = this;
+        for (var i in this.slaves) (function(i) {
+            var slave = worker.slaves[i];
+            if (slave.state == "running") {
+                slave.state = "ping";
+                var r = slave.client.request('GET', '/ping', {'host': slave.host, 'content-length': 0});
+                r.addListener('response', function(response) { 
+                    slave.state = (slave.state == "ping") ? "running" : slave.state;
+                });
+                r.close();
+            }
+        })(i);
+        this.pingId = setTimeout(function() { worker.checkPings() }, SLAVE_PING_PERIOD);
+    },
+    checkPings: function() {
+        var ok = true;
+        for (var i in this.slaves) {
+            if (this.slaves[i].state == "ping") {
+                qputs("WARN: slave " + i + " unresponsive.");
+                this.slaves[i].state = "error";
+                this.checkFinished();
             }
         }
-        if (failures.length > 0) {
-            qputs("WARN: detected unresponsive slaves: " + failures);
-            for (var i in failures) {
-                SLAVES[failures[i]] = "error";
+        this.pingId = setTimeout(this.ping, 100);
+    },
+    receiveProgress: function(report) {
+        this.slaves[report.slaveId].state = "running";
+        for (var i in report.stats) {
+            var stat = report.stats[i].name;
+            if (this.stats[stat] == null) {
+                var backend = statsClassFromString(report.stats[i].interval.type);
+                this.stats[stat] = new Reportable(backend, stat, report.stats[i].addToHttpReport);
             }
-            remoteCheckFinished();
+            this.stats[stat].merge(report.stats[i].interval);
         }
-        slavePingId = setTimeout(remotePing, 100);
+    },
+    receiveFinish: function(report) {
+        qputs(report.slaveId + " done.");
+        this.slaves[report.slaveId].state = "done";
+        this.checkFinished();
     }
-    for (var i in SLAVES) (function(i) {
-        if (SLAVES[i] == "running") {
-            SLAVES[i] = "ping";
-            var slave = i.split("@");
-            var hostandport = slave[1].split(":");
-            var r = http.createClient(hostandport[1], hostandport[0]).request('GET', '/ping', {'host': hostandport[0], 'content-length': 0});
-            r.addListener('response', function(response) { 
-                if (SLAVES[i] == "ping") {
-                    SLAVES[i] = "running" 
-                }
-            });
-            r.close();
-        }
-    })(i);
-    slavePingId = setTimeout(verifyPing, SLAVE_PING_PERIOD);
 }
 
 function serveRemote(url, req, res) {
@@ -384,50 +398,32 @@ function serveRemote(url, req, res) {
         req.addListener('data', function(chunk) { body += chunk });
         req.addListener('end', function() { callback(body) });
     }
+    var sendStatus = function(status) {
+        res.sendHeader(status, {"Content-Length": 0});
+        res.close();
+    }
     if (url == "/remote") {
         readBody(req, function(remoteFun) {
             qputs("Starting remote test:\n" + remoteFun);
             eval(remoteFun);
-            res.sendHeader(200, {"Content-Length": 0});
-            res.close();
+            sendStatus(200);
         });
     } else if (url == "/remote/stop") {
         qprint("\nReceived remote stop...");
         SCHEDULER.stopAll();
-        res.sendHeader(200, {"Content-Length": 0});
-        res.close();
+        sendStatus(200);
     } else if (url == "/remote/progress") {
         readBody(req, function(report) {
-            report = JSON.parse(report);
-            SLAVES[report.slaveId] = "running";
-            for (var i in report.stats) {
-                var stat = report.stats[i].name;
-                if (REMOTE_STATS[stat] == null) {
-                    var backend = getStats(report.stats[i].interval.type);
-                    if (backend == null) {
-                        qputs("WARN: unrecognized stats type: " + report.stats[i].interval.type);
-                    }
-                    REMOTE_STATS[stat] = new Reportable(backend, stat, report.stats[i].addToHttpReport);
-                }
-                if (REMOTE_STATS[stat] != null) {
-                    REMOTE_STATS[stat].merge(report.stats[i].interval);
-                }
-            }
-            res.sendHeader(200, {"Content-Length": 0});
-            res.close();
+            WORKER_POOL.receiveProgress(JSON.parse(report));
+            sendStatus(200);
         });
-    } else if (url == "/remote/complete") {
+    } else if (url == "/remote/finish") {
         readBody(req, function(report) {
-            report = JSON.parse(report);
-            qputs(report.slaveId + " done.");
-            SLAVES[report.slaveId] = "done";
-            remoteCheckFinished();
-            res.sendHeader(200, {"Content-Length": 0});
-            res.close();
+            WORKER_POOL.receiveFinish(JSON.parse(report))
+            sendStatus(200);
         });
     } else {
-        res.sendHeader(404, {"Content-Length": "0"});
-        res.close();
+        sendStatus(404);
     }
 }
 
@@ -834,8 +830,8 @@ progressReportLoop = function(stats, progressFun) {
     return function(loopFun) {
         if (progressFun != null)
             progressFun(stats);
-        if (MASTER_HOST != null && MASTER_PORT != null)
-            remoteProgress(MASTER_HOST, MASTER_PORT, stats);
+        if (SLAVE_STATUS != null)
+            SLAVE_STATUS.reportProgress(stats);
         defaultProgressReport(stats);
         loopFun();
     }
@@ -1262,7 +1258,7 @@ Histogram.prototype =  {
 
         this.length += other.length;
         this.sum += other.sum;
-        this.min = (other.min < this.min || this.min == -1) ? other.min : this.min;
+        this.min = (other.min != -1 && (other.min < this.min || this.min == -1)) ? other.min : this.min;
         this.max = (other.max > this.max || this.max == -1) ? other.max : this.max;
         for (var i = 0; i < this.items.length; i++) {
             if (this.items[i] != null) {
@@ -1271,7 +1267,7 @@ Histogram.prototype =  {
                 this.items[i] = other.items[i];
             }
         }
-        this.extra += this.extra.concat(other.extra);
+        this.extra = this.extra.concat(other.extra);
         this.sorted = false;
     }
 }
@@ -1538,7 +1534,7 @@ Reportable.prototype = {
     }
 }
 
-function getStats(type) {
+function statsClassFromString(name) {
     types = {
         "Histogram": Histogram, 
         "Accumulator": Accumulator, 
@@ -1550,7 +1546,7 @@ function getStats(type) {
         "NullLog": NullLog,
         "Reportable": Reportable
     };
-    return types[type];
+    return types[name];
 }
 
 
