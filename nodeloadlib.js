@@ -327,7 +327,7 @@ RemoteWorkerPool.prototype = {
         }
 
         var worker = this;
-        this.pingId = setTimeout(function() { worker.sendPings() }, SLAVE_PING_PERIOD);
+        this.pingId = setInterval(function() { worker.sendPings() }, SLAVE_PING_PERIOD);
         this.callback = testsComplete(callback, stayAliveAfterDone);
         this.progressJob = SCHEDULER.schedule({
             fun: progressReportLoop(this.stats),
@@ -347,7 +347,7 @@ RemoteWorkerPool.prototype = {
         qputs("Remote tests complete.");
         
         var callback = this.callback;
-        clearTimeout(this.pingId);
+        clearInterval(this.pingId);
         this.progressJob.stop();
         this.callback = null;
         this.slaves = {};
@@ -368,7 +368,7 @@ RemoteWorkerPool.prototype = {
                 r.close();
             }
         })(i);
-        this.pingId = setTimeout(function() { worker.checkPings() }, SLAVE_PING_PERIOD);
+        setTimeout(function() { worker.checkPings() }, SLAVE_PING_PERIOD / 2);
     },
     checkPings: function() {
         var ok = true;
@@ -376,10 +376,12 @@ RemoteWorkerPool.prototype = {
             if (this.slaves[i].state == "ping") {
                 qputs("WARN: slave " + i + " unresponsive.");
                 this.slaves[i].state = "error";
-                this.checkFinished();
+                ok = false;
             }
         }
-        this.pingId = setTimeout(this.ping, 100);
+        if (!ok) {
+            this.checkFinished();
+        }
     },
     receiveProgress: function(report) {
         this.slaves[report.slaveId].state = "running";
