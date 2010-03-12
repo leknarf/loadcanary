@@ -207,7 +207,7 @@ function testsComplete(callback, stayAliveAfterDone) {
         summaryReport(summaryStats);
         if (SLAVE_CONFIG != null) {
             // Report finish and remain alive if this is a slave instance
-            SLAVE_CONFIG.reportFinish(summaryStats);
+            endTestTimeoutId = setTimeout(function () { SLAVE_CONFIG.reportFinish(summaryStats) }, 3000);
         } else if (!stayAliveAfterDone) {
             // End process if no more tests are started within 3 seconds.
             endTestTimeoutId = setTimeout(endTest, 3000);
@@ -384,6 +384,8 @@ RemoteWorkerPool.prototype = {
         }
     },
     receiveProgress: function(report) {
+        if (this.slaves[report.slaveId] == null)
+            return;
         this.slaves[report.slaveId].state = "running";
         for (var i in report.stats) {
             var stat = report.stats[i].name;
@@ -395,6 +397,8 @@ RemoteWorkerPool.prototype = {
         }
     },
     receiveFinish: function(report) {
+        if (this.slaves[report.slaveId] == null)
+            return;
         qputs(report.slaveId + " done.");
         this.slaves[report.slaveId].state = "done";
         this.checkFinished();
