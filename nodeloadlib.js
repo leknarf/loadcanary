@@ -62,7 +62,7 @@ addTest = function(spec) {
             if ((spec.requestData != null) && (spec.method.search('^(PUT|POST)$') != -1)) {
                 var body = spec.requestData;
             }
-            return traceableRequest(spec.method, spec.path, { 'host': spec.host }, body);
+            return traceableRequest(client, spec.method, spec.path, { 'host': spec.host }, body);
         }
         return spec.requestGenerator(client);
     }
@@ -1018,7 +1018,7 @@ function getReportAsHtml(report) {
            '          }});' +
            '}' +
            '</script>' +
-           '</body></html>'
+           '</body></html>';
 
      return html;
 }

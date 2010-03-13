@@ -78,7 +78,7 @@ High-level functions useful for quickly building up complex load tests.
 
 A "test" represents requests being sent at a fixed rate over concurrent connections.  Tests are run by calling `runTest()` or calling `addTest()` followed by `startTests()`.  The parameters defining a test are detailed in **Test Definition** section. Issue requests using one of three methods:
 
-* Define `method`, `path`, and `requestData`, leaving `requestGenerator` and `requestLoop` as `null`.  If `requestData` is null, `nodeloadlib` will issue GET requests.  If it defined, it will issue PUT requests.
+* Define `method`, `path`, and `requestData`, leaving `requestGenerator` and `requestLoop` as `null`.  If `method` is `'PUT'` or `'POST'`, `nodeloadlib` will send `requestData` in the request body.
 
 * Set `requestGenerator` to a `function(http.Client) -> http.ClientRequest`.  Requests returned by this function are executed by `nodeloadlib`.  For example, you can GET random URLs using a `requestGenerator`:
 
