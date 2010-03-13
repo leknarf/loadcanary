@@ -7,7 +7,7 @@ var fs = require('fs');
 var events = require('events');
 var querystring = require('querystring');
 
-var start = new Date().getTime();
+var START = new Date().getTime();
 var lastUid = 0;
 var uid = function() { return lastUid++ };
 
@@ -878,7 +878,7 @@ function summaryReport(statsList) {
     function pad(str, width) {
         return str + (new Array(width-str.length)).join(" ");
     }
-    var out = pad("  Test Duration:", 20) + ((new Date() - start)/60000).toFixed(1) + " minutes\n";
+    var out = pad("  Test Duration:", 20) + ((new Date() - START)/60000).toFixed(1) + " minutes\n";
     
     // statsList is a list of maps: [{'name': Reportable, ...}, ...]
     for (var s in statsList) {
@@ -936,16 +936,17 @@ function Chart(name) {
     this.name = name;
     this.uid = uid();
     this.columns = ["time"];
-    this.rows = [];
+    this.rows = [[0]];
 }
 Chart.prototype = {
     put: function(data) {
-        var row = [new Date().getTime()];
+        var row = [Math.floor((new Date().getTime() - START) / 600) / 100]; // 100ths of a minute
         for (item in data) {
             var col = this.columns.indexOf(item);
             if (col < 0) {
                 col = this.columns.length;
                 this.columns.push(item);
+                this.rows[0].push(0);
             }
             row[col] = data[item];
         }
@@ -959,28 +960,31 @@ function getReportAsHtml(report) {
     for (var i in report.charts) {
         var c = report.charts[i];
         var uid = report.charts[i].uid;
-        chartdivs += '<h2>' + c.name + '</h2>' +
-                     '<div style="width:100%;float:left">' +
-                     '<div id="chart' + uid + '" style="float:left;width:800px;height:200px;"></div>' +
-                     '<div id="chart' + uid + 'legend" style="float:left;width:224px;height:200px;"></div>' +
-                     '</div>'
-        options = 
-            '{labelsDiv: document.getElementById("chart' + uid + 'legend"),' +
-            ' labelsSeparateLines: true,' +
-            ' labels: ' + JSON.stringify(c.columns) + 
-            '}';
-        plotcharts += 
-            'g' + uid + ' = new Dygraph(' +
-                'document.getElementById("chart' + uid + '"),' + 
+        var chartdiv = 
+            '<h2>' + c.name + '</h2>' +
+            '<div style="width:100%;float:left">' +
+            '<div id="chart${id}" style="float:left;width:800px;height:200px;"></div>' +
+            '<div id="chart${id}legend" style="float:left;width:224px;height:200px;"></div>' +
+            '</div>';
+        var plotchart = 
+            'graph${id} = new Dygraph(' +
+                'document.getElementById("chart${id}"),' + 
                 JSON.stringify(c.rows) + ',' + 
-                options + ');' +
+                '{labelsDiv: document.getElementById("chart${id}legend"),' +
+                ' labelsSeparateLines: true,' +
+                ' labels: ' + JSON.stringify(c.columns) + 
+                '});' +
+            'if(navigator.appName == "Microsoft Internet Explorer") { http${id} = new ActiveXObject("Microsoft.XMLHTTP"); } else { http${id} = new XMLHttpRequest(); }' +
             'setInterval(function() { ' +
-                ''
-            '}, ' + SUMMARY_HTML_REFRESH_PERIOD + ')';
+                'http${id}.open("GET", "/data/' + querystring.escape(report.name) + '/' + querystring.escape(c.name) + '");' +
+                'http${id}.onreadystatechange=function() { if(http${id}.readyState == 4) { graph${id}.updateOptions({"file": JSON.parse(http${id}.responseText)});}};' +
+                'http${id}.send(null);' +
+            '}, ' + SUMMARY_HTML_REFRESH_PERIOD + ');';
+        chartdivs += chartdiv.replace(/\$\{id\}/g, uid);
+        plotcharts += plotchart.replace(/\$\{id\}/g, uid);
     }
     var now = new Date();
     var html = '<html><head><title>nodeload results: ' + now + '</title>' +
-           '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>' +
            '<script language="javascript" type="text/javascript" src="./dygraph-combined.js"></script>' +
            '</head><body><h1>Test Results from ' + now + '</h1><pre id="reportText">' + report.text + '</pre>' +
            chartdivs +
@@ -1546,9 +1550,9 @@ openAllLogs = function() {
         ERROR_LOG = new NullLog();
     } else {
         qputs("Opening log files.");
-        STATS_LOG = new LogFile('results-' + start + '-stats.log');
-        ERROR_LOG = new LogFile('results-' + start + '-err.log');
-        SUMMARY_HTML = 'results-' + start + '-summary.html';
+        STATS_LOG = new LogFile('results-' + START + '-stats.log');
+        ERROR_LOG = new LogFile('results-' + START + '-err.log');
+        SUMMARY_HTML = 'results-' + START + '-summary.html';
         
         // stats log should be a proper JSON array: output initial "["
         STATS_LOG.put("[");
