@@ -432,7 +432,27 @@ Some handy features worth mentioning.
      
     Put `Reportable` instances to this map to have it automatically updated each reporting interval. Create the `Reportable` with `addToHttpReport=true` to add a chart for it on the HTML status page. Or, set `Report.disableIntervalReporting=true` to only update `Reportable.cumulative` and not `Reportable.interval` each reporting interval.
 
-2. **Out-of-the-box file server:**
+2. **Post-process statistics:**
+
+    Use a `startTests()` callback to examine the final statistics in `test.stats[name].cumulative` at test completion.
+
+        // GET random URLs of the form localhost:8080/data/object-#### for 10 seconds, then
+        // print out all the URLs that were hit.
+        var t = addTest({
+            timeLimit: 10,
+            targetRps: 10,
+            stats: ['uniques'],
+            requestGenerator: function(client) {
+                return traceableRequest(client, 'GET', '/data/object-' + Math.floor(Math.random()*100));;
+            }
+        });
+        function printAllUrls() {
+            qputs(JSON.stringify(t.stats['uniques'].cumulative));
+        }
+        startTests(printAllUrls);
+        
+
+3. **Out-of-the-box file server:**
 
     Just start `nodeloadlib.js` and it will serve files in the current directory.
     
@@ -446,7 +466,7 @@ Some handy features worth mentioning.
         var http = require('http');
         ...
 
-3. **Run arbitrary Javascript:**
+4. **Run arbitrary Javascript:**
 
     POST any valid Javascript to `/remote` to have it `eval()`'d.
     
