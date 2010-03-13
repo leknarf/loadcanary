@@ -935,41 +935,22 @@ Report.prototype = {
 function Chart(name) {
     this.name = name;
     this.uid = uid();
-    this.data = {}
+    this.columns = ["time"];
+    this.rows = [];
 }
 Chart.prototype = {
     put: function(data) {
-        var time = new Date().getTime();
+        var row = [new Date().getTime()];
         for (item in data) {
-            if (this.data[item] == null) {
-                this.data[item] = [];
+            var col = this.columns.indexOf(item);
+            if (col < 0) {
+                col = this.columns.length;
+                this.columns.push(item);
             }
-            this.data[item].push([time, data[item]]);
+            row[col] = data[item];
         }
+        this.rows.push(row);
     }
-}
-
-function getFlotChart(data) {
-    var chart = [];
-    for (category in data) {
-        var samples = sample(data[category], MAX_POINTS_PER_CHART);
-        chart.push({ label: category, data: samples });
-    }
-    return JSON.stringify(chart);
-}
-
-function sample(data, points) {
-    if (data.length <= points)
-        return data;
-    
-    var samples = [];
-    for (var i = 0; i < data.length; i += Math.ceil(data.length / points)) {
-        samples.push(data[i]);
-    }
-    if (data.length % points != 0) {
-        samples.push(data[data.length-1]);
-    }
-    return samples;
 }
 
 function getReportAsHtml(report) {
@@ -979,44 +960,32 @@ function getReportAsHtml(report) {
         var c = report.charts[i];
         var uid = report.charts[i].uid;
         chartdivs += '<h2>' + c.name + '</h2>' +
-                     '<div id="chart' + uid + '" style="width:800px;height:400px;"></div>';
-        plotcharts += 'data' + uid + ' = ' + getFlotChart(c.data) + '; ' +
-                     '$.plot($("#chart' + uid + '"), data' + uid + ', options); ' +
-                     'setInterval(function() {' +
-                     '    $.ajax({ url: "/data/' + querystring.escape(report.name) + '/' + querystring.escape(c.name) + '",' +
-                     '          dataType: "json",' +
-                     '          success: function(result) {' +
-                     '              $.plot($("#chart' + uid + '"), result, options);' +
-                     '          }' +
-                     '    })},' +
-                     '    ' + SUMMARY_HTML_REFRESH_PERIOD + ');'
+                     '<div style="width:100%;float:left">' +
+                     '<div id="chart' + uid + '" style="float:left;width:800px;height:200px;"></div>' +
+                     '<div id="chart' + uid + 'legend" style="float:left;width:224px;height:200px;"></div>' +
+                     '</div>'
+        options = 
+            '{labelsDiv: document.getElementById("chart' + uid + 'legend"),' +
+            ' labelsSeparateLines: true,' +
+            ' labels: ' + JSON.stringify(c.columns) + 
+            '}';
+        plotcharts += 
+            'g' + uid + ' = new Dygraph(' +
+                'document.getElementById("chart' + uid + '"),' + 
+                JSON.stringify(c.rows) + ',' + 
+                options + ');' +
+            'setInterval(function() { ' +
+                ''
+            '}, ' + SUMMARY_HTML_REFRESH_PERIOD + ')';
     }
     var now = new Date();
     var html = '<html><head><title>nodeload results: ' + now + '</title>' +
            '<script language="javascript" type="text/javascript" src="./flot/jquery.js"></script>' +
-           '<script language="javascript" type="text/javascript" src="./flot/jquery.flot.js"></script>' +
+           '<script language="javascript" type="text/javascript" src="./dygraph-combined.js"></script>' +
            '</head><body><h1>Test Results from ' + now + '</h1><pre id="reportText">' + report.text + '</pre>' +
            chartdivs +
            '<script id="source" language="javascript" type="text/javascript">' +
-           '$(document).ready(function() {' +
-           '    plot_data();' +
-           '    setInterval(refresh_text, ' + SUMMARY_HTML_REFRESH_PERIOD + ');' +
-           '});\n' +
-           'function plot_data() {' +
-           '    var options = {' +
-           '      lines: {show: true},' +
-           '      points: {show: true},' +
-           '      legend: {position: "ne", backgroundOpacity: 0},' +
-           '      xaxis: { mode: "time", timeformat: "%H:%M:%S"},' +
-           '    };\n' +
-                plotcharts + 
-           '};\n' + 
-           'function refresh_text() {' +
-           '    $.ajax({ url: "/data/' + querystring.escape(report.name) + '/report-text",' +
-           '          success: function(result) {' +
-           '              if (result != null && result.length > 0) $("#reportText").text(result);' +
-           '          }});' +
-           '}' +
+           plotcharts+
            '</script>' +
            '</body></html>';
 
@@ -1032,8 +1001,8 @@ function serveReport(report, response) {
 
 function serveChart(chart, response) {
     if (chart != null) {
-        var data = getFlotChart(chart.data);
-        response.sendHeader(200, {"Content-Type": "text/json", "Content-Length": data.length});
+        var data = JSON.stringify(chart.rows);
+        response.sendHeader(200, {"Content-Type": "text/csv", "Content-Length": data.length});
         response.write(data);
     } else {
         response.sendHeader(404, {"Content-Type": "text/html", "Content-Length": 0});
