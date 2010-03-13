@@ -205,11 +205,8 @@ function testsComplete(callback, stayAliveAfterDone) {
     return function() {
         qprint('done.\n');
         summaryReport(summaryStats);
-        if (SLAVE_CONFIG != null) {
-            // Report finish and remain alive if this is a slave instance
-            endTestTimeoutId = setTimeout(function () { SLAVE_CONFIG.reportFinish(summaryStats) }, 3000);
-        } else if (!stayAliveAfterDone) {
-            // End process if no more tests are started within 3 seconds.
+        if (SLAVE_CONFIG == null && !stayAliveAfterDone) {
+            // End process if not a slave and no more tests are started within 3 seconds.
             endTestTimeoutId = setTimeout(endTest, 3000);
         }
         if (callback != null) {
@@ -288,12 +285,6 @@ RemoteSlave.prototype = {
     reportProgress: function(stats) {
         this.sendReport('/remote/progress', {slaveId: this.id, stats: stats});
     },
-    reportFinish: function(stats) {
-        for (var i in stats) {
-            this.reportProgress(stats[i]);
-        }
-        this.sendReport('/remote/finish', {slaveId: this.id});
-    }
 }
 
 function RemoteWorkerPool(master, slaves) {
@@ -308,6 +299,7 @@ function RemoteWorkerPool(master, slaves) {
     for (var i in slaves) {
         var slave = slaves[i].split(":");
         this.slaves[slaves[i]] = {
+            id: slaves[i],
             state: "notstarted",
             host: slave[0], 
             client: http.createClient(slave[1], slave[0])
@@ -344,7 +336,7 @@ RemoteWorkerPool.prototype = {
                 return;
             }
         }
-        qputs("Remote tests complete.");
+        qprint("\nRemote tests complete.");
         
         var callback = this.callback;
         clearInterval(this.pingId);
@@ -357,31 +349,33 @@ RemoteWorkerPool.prototype = {
     },
     sendPings: function() {
         var worker = this;
-        for (var i in this.slaves) (function(i) {
-            var slave = worker.slaves[i];
-            if (slave.state == "running") {
-                slave.state = "ping";
-                var r = slave.client.request('GET', '/ping', {'host': slave.host, 'content-length': 0});
-                r.addListener('response', function(response) { 
-                    slave.state = (slave.state == "ping") ? "running" : slave.state;
-                });
-                r.close();
-            }
-        })(i);
-        setTimeout(function() { worker.checkPings() }, SLAVE_PING_PERIOD / 2);
-    },
-    checkPings: function() {
-        var ok = true;
+        var ping = function(slave) {
+            slave.state = "ping";
+            var r = slave.client.request('GET', '/remote/state', {'host': slave.host, 'content-length': 0});
+            r.addListener('response', function(response) {
+                if (slave.state == "ping") {
+                    if (response.statusCode == 200) {
+                        slave.state = "running";
+                    } else if (response.statusCode == 410) {
+                        qprint("\n" + slave.id + " done.");
+                        slave.state = "done";
+                    }
+                }
+            });
+            r.close();
+        }
+
+        var detectedError = false;
         for (var i in this.slaves) {
             if (this.slaves[i].state == "ping") {
                 qputs("WARN: slave " + i + " unresponsive.");
                 this.slaves[i].state = "error";
-                ok = false;
+                detectedError = true;
+            } else if (this.slaves[i].state == "running") {
+                ping(this.slaves[i]);
             }
         }
-        if (!ok) {
-            this.checkFinished();
-        }
+        this.checkFinished();
     },
     receiveProgress: function(report) {
         if (this.slaves[report.slaveId] == null)
@@ -396,13 +390,6 @@ RemoteWorkerPool.prototype = {
             this.stats[stat].merge(report.stats[i].interval);
         }
     },
-    receiveFinish: function(report) {
-        if (this.slaves[report.slaveId] == null)
-            return;
-        qputs(report.slaveId + " done.");
-        this.slaves[report.slaveId].state = "done";
-        this.checkFinished();
-    }
 }
 
 function serveRemote(url, req, res) {
@@ -415,28 +402,30 @@ function serveRemote(url, req, res) {
         res.sendHeader(status, {"Content-Length": 0});
         res.close();
     }
-    if (url == "/remote") {
+    if (req.method == "POST" && url == "/remote") {
         readBody(req, function(remoteFun) {
             qputs("Starting remote test:\n" + remoteFun);
             eval(remoteFun);
             sendStatus(200);
         });
-    } else if (url == "/remote/stop") {
+    } else if (req.method == "GET" && req.url == "/remote/state") {
+        if (SCHEDULER.running == true) {
+            res.sendHeader(200, {"Content-Length": 0});
+        } else {
+            res.sendHeader(410, {"Content-Length": 0});
+        }
+        res.close();
+    } else if (req.method == "POST" && url == "/remote/stop") {
         qprint("\nReceived remote stop...");
         SCHEDULER.stopAll();
         sendStatus(200);
-    } else if (url == "/remote/progress") {
+    } else if (req.method == "POST" && url == "/remote/progress") {
         readBody(req, function(report) {
             WORKER_POOL.receiveProgress(JSON.parse(report));
             sendStatus(200);
         });
-    } else if (url == "/remote/finish") {
-        readBody(req, function(report) {
-            WORKER_POOL.receiveFinish(JSON.parse(report))
-            sendStatus(200);
-        });
     } else {
-        sendStatus(404);
+        sendStatus(405);
     }
 }
 
@@ -1108,28 +1097,20 @@ startHttpServer = function(port) {
     qputs('Serving progress report on port ' + port + '.');
     HTTP_SERVER = http.createServer(function (req, res) {
         var now = new Date();
-        if (req.method == "GET") {
-            if (req.url == "/") {
-                serveReport(HTTP_REPORT, res);
-            } else if (req.url == "/ping") {
-                res.sendHeader(200, {"Content-Length": 0});
-                res.close();
-            } else if (req.url.match("^/data/main/report-text")) {
-                res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
-                res.write(HTTP_REPORT.text);
-                res.close();
-            } else if (req.url.match("^/data/main/")) {
-                serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
-            } else {
-                serveFile("." + req.url, res);
-            }
-        } else if (req.method == "POST") {
-            if (req.url.match("^/remote")) {
-                serveRemote(req.url, req, res);
-            } else {
-                res.sendHeader(404, {"Content-Length": "0"});
-                res.close();
-            }
+        if (req.method == "GET" && req.url == "/") {
+            serveReport(HTTP_REPORT, res);
+        } else if (req.method == "GET" && req.url.match("^/data/main/report-text")) {
+            res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
+            res.write(HTTP_REPORT.text);
+            res.close();
+        } else if (req.method == "GET" && req.url.match("^/data/main/")) {
+            serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
+        } else if (req.method == "GET" && req.url.match("^/remote")) {
+            serveRemote(req.url, req, res);
+        } else if (req.url.match("^/remote")) {
+            serveRemote(req.url, req, res);
+        } else if (req.method == "GET") {
+            serveFile("." + req.url, res);
         } else {
             res.sendHeader(405, {"Content-Length": "0"});
             res.close();
@@ -1523,8 +1504,7 @@ Reportable = function(backend, name, addToHttpReport) {
         backend = backend[0];
     }
         
-
-    this.type = "Reportable:" + backend;
+    this.type = "Reportable";
     this.name = name;
     this.length = 0;
     this.interval = new backend(backendparams);
