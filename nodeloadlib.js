@@ -293,8 +293,8 @@ function RemoteWorkerPool(master, slaves) {
     this.fun = null;
     this.callback = null;
     this.pingId = null;
+    this.progressId = null;
     this.stats = {};
-    this.progressJob = null;
 
     for (var i in slaves) {
         var slave = slaves[i].split(":");
@@ -321,13 +321,6 @@ RemoteWorkerPool.prototype = {
         var worker = this;
         this.pingId = setInterval(function() { worker.sendPings() }, SLAVE_PING_PERIOD);
         this.callback = testsComplete(callback, stayAliveAfterDone);
-        this.progressJob = SCHEDULER.schedule({
-            fun: progressReportLoop(this.stats),
-            rps: 1/TEST_DEFAULTS.reportInterval,
-            delay: TEST_DEFAULTS.reportInterval,
-            monitored: false
-        });
-        this.progressJob.start();
         summaryStats = [this.stats];
     },
     checkFinished: function() {
@@ -340,7 +333,6 @@ RemoteWorkerPool.prototype = {
         
         var callback = this.callback;
         clearInterval(this.pingId);
-        this.progressJob.stop();
         this.callback = null;
         this.slaves = {};
         if (callback != null) {
@@ -378,6 +370,15 @@ RemoteWorkerPool.prototype = {
         }
         this.checkFinished();
     },
+    scheduleProgressReport: function() {
+        if (this.progressId == null) {
+            var worker = this;
+            this.progressId = setTimeout(function() { 
+                defaultProgressReport(worker.stats);
+                worker.progressId = null;
+            }, 500);
+        }
+    },
     receiveProgress: function(report) {
         if (this.slaves[report.slaveId] == null)
             return;
@@ -390,6 +391,7 @@ RemoteWorkerPool.prototype = {
             }
             this.stats[stat].merge(report.stats[i].interval);
         }
+        this.scheduleProgressReport();
     },
 }
 
