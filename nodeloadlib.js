@@ -1255,7 +1255,7 @@ Histogram.prototype =  {
         var s = {
             min: this.min,
             max: this.max,
-            avg: this.mean().toFixed(1),
+            avg: Number(this.mean().toFixed(1)),
             median: this.percentile(.5)
         };
         for (var i in this.percentiles) {
@@ -1344,7 +1344,7 @@ ResultsCounter.prototype = {
     },
     summary: function() {
         this.items.total = this.length;
-        this.items.rps = (this.length / ((new Date() - this.start) / 1000)).toFixed(1);
+        this.items.rps = Number((this.length / ((new Date() - this.start) / 1000)).toFixed(1));
         return this.items;
     },
     merge: function(other) {
