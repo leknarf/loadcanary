@@ -1572,11 +1572,10 @@ nextGaussian = function(mean, stddev) {
 }
 
 nextPareto = function(min, max, shape) {
-    var rnd = Math.random();
+    if (shape == null) shape = 0.1;
+    var l = 1, h = Math.pow(1+max-min, shape), rnd = Math.random();
     while (rnd == 0) rnd = Math.random();
-    var l = Math.pow(min+1, shape);
-    var h = Math.pow(max+1, shape);
-    return Math.pow((rnd*(h-l)-h) / -(h*l), -1/shape)-1;
+    return Math.pow((rnd*(h-l)-h) / -(h*l), -1/shape)-1+min;
 }
 
 function statsClassFromString(name) {
