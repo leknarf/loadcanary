@@ -328,6 +328,12 @@ Implementations of various statistics.
 * `NullLog`: Ignores all items put in.
 * `Reportable`: Wraps any other statistic to store an interval and cumulative version of it.
 
+**Functions:**
+
+* `randomString(length)`: Returns a random string of ASCII characters between 32 and 126 of the requested length.
+* `nextGaussian(mean, stddev)`: Returns a normally distributed number using the provided mean and standard deviation.
+* `nextPareto(min, max, shape)`: Returns a Pareto distributed number between `min` and `max` inclusive using the provided shape.
+
 **Usage:**
 
 All of the statistics classes support the methods:

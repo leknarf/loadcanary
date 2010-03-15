@@ -1551,6 +1551,34 @@ Reportable.prototype = {
     }
 }
 
+randomString = function(length) {
+    var s = "";
+    for (var i = 0; i < length; i++) {
+        s += '\\' + (Math.floor(Math.random() * 95) + 32).toString(8); // ascii chars between 32 and 126
+    }
+    return eval("'" + s + "'");
+}
+
+nextGaussian = function(mean, stddev) {
+    if (mean == null) mean = 0;
+    if (stddev == null) stddev = 1;
+    var s = 0, z0, z1;
+    while (s == 0 || s >= 1) {
+        z0 = 2 * Math.random() - 1;
+        z1 = 2 * Math.random() - 1;
+        s = z0*z0 + z1*z1;
+    }
+    return z0 * Math.sqrt(-2 * Math.log(s) / s) * stddev + mean;
+}
+
+nextPareto = function(min, max, shape) {
+    var rnd = Math.random();
+    while (rnd == 0) rnd = Math.random();
+    var l = Math.pow(min+1, shape);
+    var h = Math.pow(max+1, shape);
+    return Math.pow((rnd*(h-l)-h) / -(h*l), -1/shape)-1;
+}
+
 function statsClassFromString(name) {
     types = {
         "Histogram": Histogram, 
