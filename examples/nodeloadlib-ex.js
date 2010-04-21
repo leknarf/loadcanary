@@ -45,6 +45,7 @@ runTest({
     port: 8098,
     numClients: 20,
     numRequests: 2000,
+    timeLimit: Infinity,
     successCodes: [204],
     reportInterval: 2,
     stats: ['result-codes', 'latency', 'concurrency', 'uniques'],
