@@ -32,10 +32,10 @@ function riakUpdate(loopFun, client, url, body) {
             req.addListener('response', function(response) {
                 loopFun({req: req, res: response});
             });
-            req.close();
+            req.end();
         }
     });
-    req.close();
+    req.end();
 }
 
 var i=0;

@@ -280,7 +280,7 @@ RemoteSlave.prototype = {
         var s = JSON.stringify(object);
         var req = this.master.request('POST', url, {'host': this.masterhost, 'content-length': s.length});
         req.write(s);
-        req.close();
+        req.end();
     },
     reportProgress: function(stats) {
         this.sendReport('/remote/progress', {slaveId: this.id, stats: stats});
@@ -314,7 +314,7 @@ RemoteWorkerPool.prototype = {
             var slaveFun = "registerSlave('" + i + "','" + this.master + "');\n" + fun;
             var r = slave.client.request('POST', '/remote', {'host': slave.host, 'content-length': slaveFun.length});
             r.write(slaveFun);
-            r.close();
+            r.end();
             slave.state = "running";
         }
 
@@ -355,7 +355,7 @@ RemoteWorkerPool.prototype = {
             slave.state = "ping";
             var r = slave.client.request('GET', '/remote/state', {'host': slave.host, 'content-length': 0});
             r.addListener('response', pong(slave));
-            r.close();
+            r.end();
         }
 
         var detectedError = false;
@@ -403,7 +403,7 @@ function serveRemote(url, req, res) {
     }
     var sendStatus = function(status) {
         res.sendHeader(status, {"Content-Length": 0});
-        res.close();
+        res.end();
     }
     if (req.method == "POST" && url == "/remote") {
         readBody(req, function(remoteFun) {
@@ -417,7 +417,7 @@ function serveRemote(url, req, res) {
         } else {
             res.sendHeader(410, {"Content-Length": 0});
         }
-        res.close();
+        res.end();
     } else if (req.method == "POST" && url == "/remote/stop") {
         qprint("\nReceived remote stop...");
         SCHEDULER.stopAll();
@@ -736,7 +736,7 @@ requestGeneratorLoop = function(generator) {
                     loopFun({req: request, res: response});
                 }
             });
-            request.close();
+            request.end();
         }
     }
 }
@@ -1031,7 +1031,7 @@ function serveReport(report, response) {
     var html = getReportAsHtml(report);
     response.sendHeader(200, {"Content-Type": "text/html", "Content-Length": html.length});
     response.write(html);
-    response.close();
+    response.end();
 }
 
 function serveChart(chart, response) {
@@ -1043,7 +1043,7 @@ function serveChart(chart, response) {
         response.sendHeader(404, {"Content-Type": "text/html", "Content-Length": 0});
         response.write("");
     }
-    response.close();
+    response.end();
 }
 
 function serveFile(file, response) {
@@ -1062,7 +1062,7 @@ function serveFile(file, response) {
                                 if (err == null) {
                                     if (!chunk) {
                                         fs.close(fd);
-                                        response.close();
+                                        response.end();
                                         return;
                                     }
 
@@ -1073,7 +1073,7 @@ function serveFile(file, response) {
                                 } else {
                                     response.sendHeader(500, {"Content-Type": "text/plain"});
                                     response.write("Error reading file " + file);
-                                    response.close();
+                                    response.end();
                                 }
                             });
                         }
@@ -1081,18 +1081,18 @@ function serveFile(file, response) {
                     } else {
                         response.sendHeader(500, {"Content-Type": "text/plain"});
                         response.write("Error opening file " + file);
-                        response.close();
+                        response.end();
                     }
                 });
             } else{
                 response.sendHeader(404, {"Content-Type": "text/plain"});
                 response.write("Not a file: " + file);
-                response.close();
+                response.end();
             } 
         } else {
             response.sendHeader(404, {"Content-Type": "text/plain"});
             response.write("Cannot find file: " + file);
-            response.close();
+            response.end();
         }
     });
 }
@@ -1109,7 +1109,7 @@ startHttpServer = function(port) {
         } else if (req.method == "GET" && req.url.match("^/data/main/report-text")) {
             res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
             res.write(HTTP_REPORT.text);
-            res.close();
+            res.end();
         } else if (req.method == "GET" && req.url.match("^/data/main/")) {
             serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
         } else if (req.method == "GET" && req.url.match("^/remote")) {
@@ -1120,7 +1120,7 @@ startHttpServer = function(port) {
             serveFile("." + req.url, res);
         } else {
             res.sendHeader(405, {"Content-Length": "0"});
-            res.close();
+            res.end();
         }
     });
     HTTP_SERVER.listen(port);
