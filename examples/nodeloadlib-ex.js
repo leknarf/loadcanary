@@ -54,7 +54,7 @@ runTest({
 }, startRWTest);
 
 function startRWTest() {
-    process.stdio.write("Running read + update test.");
+    process.stdout.write("Running read + update test.");
     
     var reads = addTest({
         name: "Read",
