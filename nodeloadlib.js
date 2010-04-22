@@ -254,6 +254,7 @@ remoteStart = function(master, slaves, tests, callback, stayAliveAfterDone) {
 remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDone) {
     fs.readFile(filename, function (err, data) {
         if (err != null) throw err;
+        data = data.replace(/^#![^\n]+\n/, '// removed shebang directive from runnable script\n');
         remoteSubmit(master, slaves, data, callback, stayAliveAfterDone);
     });
 }
@@ -1549,6 +1550,16 @@ Reportable.prototype = {
         this.interval.merge(other);
         this.cumulative.merge(other);
     }
+}
+
+roundRobin = function(list) {
+    r = list.slice();
+    r.rridx = -1;
+    r.get = function() {
+        this.rridx = (this.rridx+1) % this.length;
+        return this[this.rridx];
+    }
+    return r;
 }
 
 randomString = function(length) {

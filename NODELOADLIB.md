@@ -333,6 +333,7 @@ Implementations of various statistics.
 * `randomString(length)`: Returns a random string of ASCII characters between 32 and 126 of the requested length.
 * `nextGaussian(mean, stddev)`: Returns a normally distributed number using the provided mean and standard deviation.
 * `nextPareto(min, max, shape)`: Returns a Pareto distributed number between `min` and `max` inclusive using the provided shape.
+* `roundRobin(list)`: Returns a copy of the list with a `get()` method. `get()` returns list entries round robin.
 
 **Usage:**
 
