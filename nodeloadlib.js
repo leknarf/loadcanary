@@ -403,7 +403,7 @@ function serveRemote(url, req, res) {
         req.addListener('end', function() { callback(body) });
     }
     var sendStatus = function(status) {
-        res.sendHeader(status, {"Content-Length": 0});
+        res.writeHead(status, {"Content-Length": 0});
         res.end();
     }
     if (req.method == "POST" && url == "/remote") {
@@ -414,9 +414,9 @@ function serveRemote(url, req, res) {
         });
     } else if (req.method == "GET" && req.url == "/remote/state") {
         if (SCHEDULER.running == true) {
-            res.sendHeader(200, {"Content-Length": 0});
+            res.writeHead(200, {"Content-Length": 0});
         } else {
-            res.sendHeader(410, {"Content-Length": 0});
+            res.writeHead(410, {"Content-Length": 0});
         }
         res.end();
     } else if (req.method == "POST" && url == "/remote/stop") {
@@ -1030,7 +1030,7 @@ function getReportAsHtml(report) {
 
 function serveReport(report, response) {
     var html = getReportAsHtml(report);
-    response.sendHeader(200, {"Content-Type": "text/html", "Content-Length": html.length});
+    response.writeHead(200, {"Content-Type": "text/html", "Content-Length": html.length});
     response.write(html);
     response.end();
 }
@@ -1038,10 +1038,10 @@ function serveReport(report, response) {
 function serveChart(chart, response) {
     if (chart != null) {
         var data = JSON.stringify(chart.rows);
-        response.sendHeader(200, {"Content-Type": "text/csv", "Content-Length": data.length});
+        response.writeHead(200, {"Content-Type": "text/csv", "Content-Length": data.length});
         response.write(data);
     } else {
-        response.sendHeader(404, {"Content-Type": "text/html", "Content-Length": 0});
+        response.writeHead(404, {"Content-Type": "text/html", "Content-Length": 0});
         response.write("");
     }
     response.end();
@@ -1051,7 +1051,7 @@ function serveFile(file, response) {
     fs.stat(file, function(err, stat) {
         if (err == null) {
             if (stat.isFile()) {
-                response.sendHeader(200, {
+                response.writeHead(200, {
                     'Content-Length': stat.size,
                 });
 
@@ -1072,7 +1072,7 @@ function serveFile(file, response) {
 
                                     streamChunk();
                                 } else {
-                                    response.sendHeader(500, {"Content-Type": "text/plain"});
+                                    response.writeHead(500, {"Content-Type": "text/plain"});
                                     response.write("Error reading file " + file);
                                     response.end();
                                 }
@@ -1080,18 +1080,18 @@ function serveFile(file, response) {
                         }
                         streamChunk();
                     } else {
-                        response.sendHeader(500, {"Content-Type": "text/plain"});
+                        response.writeHead(500, {"Content-Type": "text/plain"});
                         response.write("Error opening file " + file);
                         response.end();
                     }
                 });
             } else{
-                response.sendHeader(404, {"Content-Type": "text/plain"});
+                response.writeHead(404, {"Content-Type": "text/plain"});
                 response.write("Not a file: " + file);
                 response.end();
             } 
         } else {
-            response.sendHeader(404, {"Content-Type": "text/plain"});
+            response.writeHead(404, {"Content-Type": "text/plain"});
             response.write("Cannot find file: " + file);
             response.end();
         }
@@ -1108,7 +1108,7 @@ startHttpServer = function(port) {
         if (req.method == "GET" && req.url == "/") {
             serveReport(HTTP_REPORT, res);
         } else if (req.method == "GET" && req.url.match("^/data/main/report-text")) {
-            res.sendHeader(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
+            res.writeHead(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
             res.write(HTTP_REPORT.text);
             res.end();
         } else if (req.method == "GET" && req.url.match("^/data/main/")) {
@@ -1120,7 +1120,7 @@ startHttpServer = function(port) {
         } else if (req.method == "GET") {
             serveFile("." + req.url, res);
         } else {
-            res.sendHeader(405, {"Content-Length": "0"});
+            res.writeHead(405, {"Content-Length": "0"});
             res.end();
         }
     });
