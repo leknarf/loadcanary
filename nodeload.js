@@ -119,7 +119,7 @@ function initClientRequest(clientIdCounter) {
                 }
             });
         });
-        request.close();
+        request.end();
     }
 
     process.nextTick(doRequest);
