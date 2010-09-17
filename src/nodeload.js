@@ -29,7 +29,7 @@ var sys = require('sys'),
     http = require('http');
 
 var options = require('./options');
-var report = require('./report');
+var report = require('./txtreport');
 var stats = require('./stats');
 
 
