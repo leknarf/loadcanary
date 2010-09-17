@@ -30,3 +30,4 @@ if (typeof DISABLE_LOGS == "undefined")
     DISABLE_LOGS = false;
 
 openAllLogs();
+

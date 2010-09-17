@@ -114,3 +114,4 @@ writeReport = function() {
         fs.writeFile(SUMMARY_HTML, getReportAsHtml(HTTP_REPORT), "ascii");
     }
 }
+

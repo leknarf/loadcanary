@@ -223,3 +223,4 @@ progressReportLoop = function(stats, progressFun) {
         loopFun();
     }
 }
+

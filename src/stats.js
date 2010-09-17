@@ -450,3 +450,4 @@ function statsClassFromString(name) {
     };
     return types[name];
 }
+

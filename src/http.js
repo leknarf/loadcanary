@@ -182,3 +182,4 @@ stopHttpServer = function() {
     HTTP_SERVER.close();
     qputs('Shutdown report server.');
 }
+

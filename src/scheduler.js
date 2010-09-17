@@ -178,3 +178,4 @@ Job.prototype = {
         return other;
     },
 }
+
