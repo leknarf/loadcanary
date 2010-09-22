@@ -14,10 +14,10 @@ OVERVIEW
 QUICKSTART
 ================
 
-Add `require(./nodeloadlib.js)` and call `runTest()` or `addTest()/startTests()`:
+Add `require(./dist/nodeloadlib.js)` and call `runTest()` or `addTest()/startTests()`:
 
     // Add to example.js:
-    require('./nodeloadlib');
+    require('./dist/nodeloadlib');
 
     runTest({
         name: "Read",
@@ -193,7 +193,7 @@ Functions to distributing tests across multiple slave `nodeload` instances. See 
 
 First, simply start `nodeloadlib.js` on each slave instances.
 
-    $ node nodeloadlib.js       # Run on each slave machine
+    $ node dist/nodeloadlib.js       # Run on each slave machine
 
 Then, create tests in using `remoteTest(spec)` with the same `spec` fields in the **Test Definition** section above. Pass the created tests as a list to `remoteStart(...)` to execute them on slave `nodeload` instances. `master` must be the `"host:port"` of the `nodeload` which is executing `remoteStart(...)`. It will receive and aggregates statistics from the slaves, so the address should be reachable by the slaves. Or, use `master=null` to disable reports from the slaves.
 
@@ -354,7 +354,7 @@ In addition, these other methods are supported:
 * `LogFile.close()`: Close the file.
 * `Reportable.next()`: clear out the interval statistic for the next window.
 
-Refer to the `Statistics` section near line 910 of [nodeloadlib.js](http://github.com/benschmaus/nodeload/tree/master/nodeloadlib.js) for the return value of the `get()` and `summary()` functions for the different classes.
+Refer to the `Statistics` section near line 910 of [nodeloadlib.js](http://github.com/benschmaus/nodeload/tree/master/dist/nodeloadlib.js) for the return value of the `get()` and `summary()` functions for the different classes.
 
 
 ## HTTP-specific Monitors ##
@@ -463,7 +463,7 @@ Some handy features worth mentioning.
 
     Just start `nodeloadlib.js` and it will serve files in the current directory.
     
-        $ node nodeloadlib.js
+        $ node dist/nodeloadlib.js
         $ curl -i localhost:8000/nodeloadlib.js     # executed in a separate terminal
         HTTP/1.1 200 OK
         Content-Length: 50763
@@ -477,7 +477,7 @@ Some handy features worth mentioning.
 
     POST any valid Javascript to `/remote` to have it `eval()`'d.
     
-        $ node nodeloadlib.js
+        $ node dist/nodeloadlib.js
         Serving progress report on port 8000.
         Opening log files.
         Starting remote test:
