@@ -151,7 +151,7 @@ requestGeneratorLoop = function(generator) {
                     loopFun({req: request, res: {statusCode: 0}});
                 }, request.timeout);
             }
-            request.addListener('response', function(response) {
+            request.on('response', function(response) {
                 if (!timedOut) {
                     if (timeoutId != null) {
                         clearTimeout(timeoutId);
@@ -186,7 +186,7 @@ monitorResultsLoop = function(results, fun) {
     response body and writes its size to bytesReceived, which is generally a stats.js#Accumlator object. */
 monitorByteReceivedLoop = function(bytesReceived, fun) {
     var finish = function(http) { 
-        http.res.addListener('data', function(chunk) {
+        http.res.on('data', function(chunk) {
             bytesReceived.put(chunk.length);
         });
     };
@@ -217,10 +217,10 @@ monitorHttpFailuresLoop = function(successCodes, fun, log) {
     var finish = function(http) {
         var body = "";
         if (successCodes.indexOf(http.res.statusCode) < 0) {
-            http.res.addListener('data', function(chunk) {
+            http.res.on('data', function(chunk) {
                 body += chunk;
             });
-            http.res.addListener('end', function(chunk) {
+            http.res.on('end', function(chunk) {
                 log.put(JSON.stringify({
                     ts: new Date(), 
                     req: {

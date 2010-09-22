@@ -180,7 +180,7 @@ RemoteWorkerPool.prototype = {
         var ping = function(slave) {
             slave.state = "ping";
             var r = slave.client.request('GET', '/remote/state', {'host': slave.host, 'content-length': 0});
-            r.addListener('response', pong(slave));
+            r.on('response', pong(slave));
             r.end();
         }
 
@@ -229,8 +229,8 @@ RemoteWorkerPool.prototype = {
 function serveRemote(url, req, res) {
     var readBody = function(req, callback) {
         var body = '';
-        req.addListener('data', function(chunk) { body += chunk });
-        req.addListener('end', function() { callback(body) });
+        req.on('data', function(chunk) { body += chunk });
+        req.on('end', function() { callback(body) });
     }
     var sendStatus = function(status) {
         res.writeHead(status, {"Content-Length": 0});

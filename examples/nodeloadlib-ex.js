@@ -16,7 +16,7 @@ require('../dist/nodeloadlib');
 
 function riakUpdate(loopFun, client, url, body) {
     var req = traceableRequest(client, 'GET', url, { 'host': 'localhost' });
-    req.addListener('response', function(response) {
+    req.on('response', function(response) {
         if (response.statusCode != 200 && response.statusCode != 404) {
             loopFun({req: req, res: response});
         } else {
@@ -29,7 +29,7 @@ function riakUpdate(loopFun, client, url, body) {
                 headers['x-riak-vclock'] = response.headers['x-riak-vclock'];
                 
             req = traceableRequest(client, 'PUT', url, headers, body);
-            req.addListener('response', function(response) {
+            req.on('response', function(response) {
                 loopFun({req: req, res: response});
             });
             req.end();

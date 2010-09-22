@@ -428,7 +428,7 @@ requestGeneratorLoop = function(generator) {
                     loopFun({req: request, res: {statusCode: 0}});
                 }, request.timeout);
             }
-            request.addListener('response', function(response) {
+            request.on('response', function(response) {
                 if (!timedOut) {
                     if (timeoutId != null) {
                         clearTimeout(timeoutId);
@@ -463,7 +463,7 @@ monitorResultsLoop = function(results, fun) {
     response body and writes its size to bytesReceived, which is generally a stats.js#Accumlator object. */
 monitorByteReceivedLoop = function(bytesReceived, fun) {
     var finish = function(http) { 
-        http.res.addListener('data', function(chunk) {
+        http.res.on('data', function(chunk) {
             bytesReceived.put(chunk.length);
         });
     };
@@ -494,10 +494,10 @@ monitorHttpFailuresLoop = function(successCodes, fun, log) {
     var finish = function(http) {
         var body = "";
         if (successCodes.indexOf(http.res.statusCode) < 0) {
-            http.res.addListener('data', function(chunk) {
+            http.res.on('data', function(chunk) {
                 body += chunk;
             });
-            http.res.addListener('end', function(chunk) {
+            http.res.on('end', function(chunk) {
                 log.put(JSON.stringify({
                     ts: new Date(), 
                     req: {
@@ -951,7 +951,7 @@ RemoteWorkerPool.prototype = {
         var ping = function(slave) {
             slave.state = "ping";
             var r = slave.client.request('GET', '/remote/state', {'host': slave.host, 'content-length': 0});
-            r.addListener('response', pong(slave));
+            r.on('response', pong(slave));
             r.end();
         }
 
@@ -1000,8 +1000,8 @@ RemoteWorkerPool.prototype = {
 function serveRemote(url, req, res) {
     var readBody = function(req, callback) {
         var body = '';
-        req.addListener('data', function(chunk) { body += chunk });
-        req.addListener('end', function() { callback(body) });
+        req.on('data', function(chunk) { body += chunk });
+        req.on('end', function() { callback(body) });
     }
     var sendStatus = function(status) {
         res.writeHead(status, {"Content-Length": 0});

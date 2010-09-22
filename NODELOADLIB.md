@@ -93,7 +93,7 @@ A "test" represents requests being sent at a fixed rate over concurrent connecti
         addTest({
             requestLoop: function(loopFun, client) {
                 var req = traceableRequest(client, 'GET', '/resource');
-                req.addListener('response', function(response) {
+                req.on('response', function(response) {
                     if (response.statusCode != 200 && response.statusCode != 404) {
                         loopFun({req: req, res: response});
                     } else {
@@ -101,7 +101,7 @@ A "test" represents requests being sent at a fixed rate over concurrent connecti
                         if (response.headers['etag'] != null)
                             headers['if-match'] = response.headers['etag'];
                         req = traceableRequest(client, 'PUT', '/resource', headers, "new value");
-                        req.addListener('response', function(response) {
+                        req.on('response', function(response) {
                             loopFun({req: req, res: response});
                         });
                         req.close();
@@ -383,7 +383,7 @@ Example:
     var uniq = new Reportable(Uniques, 'Uniques');
     var loop = monitorUniqueUrlsLoop(uniq, function(loopFun, client) {
         var req = traceableRequest(client, 'GET', '/data/obj-' + Math.floor(Math.random()*1000));
-        req.addListener('response', function(response) {
+        req.on('response', function(response) {
             sys.puts('ah')
             loopFun({req: req, res: response});
         });
