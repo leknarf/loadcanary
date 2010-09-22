@@ -11,3 +11,17 @@ var START = new Date().getTime();
 var lastUid = 0;
 var uid = function() { return lastUid++ };
 
+if (typeof QUIET == "undefined")
+    QUIET = false;
+
+qputs = function(s) {
+    if (!QUIET) {
+        sys.puts(s);
+    }
+}
+
+qprint = function(s) {
+    if (!QUIET) {
+        sys.print(s);
+    }
+}

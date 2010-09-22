@@ -64,7 +64,7 @@ COMPONENTS
 
 ## Load Test Functions ##
 
-High-level functions useful for quickly building up complex load tests.
+High-level functions useful for quickly building up complex load tests. See `api.js`.
 
 **Functions:**
 
@@ -181,7 +181,7 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
 
 ## Distributed Testing ##
 
-Functions to distributing tests across multiple slave `nodeload` instances.
+Functions to distributing tests across multiple slave `nodeload` instances. See `remote.js`
 
 **Functions:**
 

@@ -35,7 +35,7 @@ function getReportAsHtml(report) {
     var now = new Date();
     var html = 
             '<html><head><title>Test Results</title>' +
-            '<script language="javascript" type="text/javascript" src="./dygraph-combined.js"></script>' +
+            '<script language="javascript" type="text/javascript" src="./dist/dygraph-combined.js"></script>' +
             '<style><!--' +
             'body { margin: 0px; font: 13px Arial, Helvetica, sans-serif; }' +
             'h1 { font-size: 2.4em; }' +
@@ -183,3 +183,17 @@ stopHttpServer = function() {
     qputs('Shutdown report server.');
 }
 
+
+// Define and start HTTP server
+if (typeof HTTP_REPORT == "undefined")
+    HTTP_REPORT = new Report("main");
+
+if (typeof HTTP_SERVER_PORT == "undefined") {
+    HTTP_SERVER_PORT = 8000;
+    if (process.env['HTTP_SERVER_PORT'] != null) {
+        HTTP_SERVER_PORT = Number(process.env['HTTP_SERVER_PORT']);
+    }
+}
+    
+if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
+    startHttpServer(HTTP_SERVER_PORT);

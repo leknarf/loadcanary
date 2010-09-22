@@ -1,6 +1,12 @@
 // ------------------------------------
 // Logs
 // ------------------------------------
+//
+// Each time nodeloadlib is used, three result files are created:
+// 1. results-<timestamp>-stats.log: Contains a log of all the statistics in JSON format
+// 2. results-<timestamp>-err.log: Contains all failed HTTP request/responses
+// 3. results-<timestamp>-summary.html: A HTML summary page of the load test 
+//
 var logsOpen;
 openAllLogs = function() {
     if (logsOpen)
@@ -34,15 +40,8 @@ closeAllLogs = function() {
     }
 }
 
-qputs = function(s) {
-    if (!QUIET) {
-        sys.puts(s);
-    }
-}
+// Initialize & open all log files
+if (typeof DISABLE_LOGS == "undefined")
+    DISABLE_LOGS = false;
 
-qprint = function(s) {
-    if (!QUIET) {
-        sys.print(s);
-    }
-}
-
+openAllLogs();

@@ -1,6 +1,10 @@
 // ------------------------------------
 // Statistics
 // ------------------------------------
+//
+// Contains various statistics classes and function. The classes implement the same consistent interface. 
+// See NODELOADLIB.md for a complete description of the classes and functions.
+
 Histogram = function(params) {
     // default histogram size of 3000: when tracking latency at ms resolution, this
     // lets us store latencies up to 3 seconds in the main array

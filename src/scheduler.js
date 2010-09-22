@@ -1,6 +1,12 @@
 // -----------------------------------------
 // Scheduler for event-based loops
 // -----------------------------------------
+//
+// 
+//
+
+/** JOB_DEFAULTS defines all of the parameters that can be set in a job specifiction passed to
+    Scheduler.schedule(spec). */
 var JOB_DEFAULTS = {
     fun: null,                  // A function to execute which accepts the parameters (loopFun, args).
                                 // The value of args is the return value of argGenerator() or the args
@@ -17,6 +23,8 @@ var JOB_DEFAULTS = {
     delay: 0,                   // Seconds to wait before calling fun() for the first time
     monitored: true             // Does this job need to finish in order for SCHEDULER.startAll() to end?
 };
+/** A scheduler starts and monitors a group of Jobs. There should only be a single instance of Scheduler,
+    SCHEDULER. See also the Job class below. */
 Scheduler = function() {
     this.id=uid();
     this.jobs = [];
@@ -24,9 +32,10 @@ Scheduler = function() {
     this.callback = null;
 }
 Scheduler.prototype = {
+    /** Primary function for defining and adding a Job. Start all scheduled jobs by calling startAll(). */
     schedule: function(spec) {
         defaults(spec, JOB_DEFAULTS);
-        var s = new Job(spec);
+        var s = new Job(this, spec);
         this.addJob(s);
         return s;
     },
@@ -37,6 +46,7 @@ Scheduler.prototype = {
         var scheduler = this;
         s.start(function() { scheduler.checkFinished() });
     },
+    /** Start all scheduled Jobs. When the jobs complete, the user defined function, callback is called. */
     startAll: function(callback) {
         if (this.running)
             return;
@@ -51,11 +61,14 @@ Scheduler.prototype = {
         this.callback = callback;
         this.running = true;
     },
+    /** Force all jobs to finish. The user defined callback will still be called. */
     stopAll: function() {
         for (var i in this.jobs) {
             this.jobs[i].stop();
         }
     },
+    /** Iterate all jobs and see if any are still running. If all jobs are complete, then call
+        the user defined callback function. */
     checkFinished: function() {
         for (var i in this.jobs) {
             if (this.jobs[i].monitored && this.jobs[i].started && !this.jobs[i].done) {
@@ -77,8 +90,18 @@ Scheduler.prototype = {
     }
 }
 
-function Job(spec) {
+/** At a high level, a Job encapsulates a single load test. A Job instances represents a function that is
+    being executed at a certain rate and concurrency for a set duration. See JOB_DEFAULTS for a list
+    of the configuration values that can be provided in the job specification, spec.
+    
+    Jobs can be monitored or unmonitored. All monitored jobs must finish before Scheduler considers 
+    the entire job group to be complete. Scheduler automatically stops all unmonitored jobs in the
+    same group when all monitored jobs complete.
+    
+    TODO: find a better implementation of concurrency that doesn't require interaction with Scheduler */
+function Job(scheduler, spec) {
     this.id = uid();
+    this.scheduler = scheduler;
     this.fun = spec.fun;
     this.args = spec.args;
     this.argGenerator = spec.argGenerator;
@@ -97,6 +120,9 @@ function Job(spec) {
     this.warningTimeoutId = setTimeout(function() { qputs("WARN: a job" + job.id + " was not started; Job.start() called?") }, 3000);
 }
 Job.prototype = {
+    /** Scheduler calls this method to start the job. The user defined function, callback, is called when the
+        job completes. This function basically creates and starts a ConditionalLoop instance (which is an "event 
+        based loop"). To handle concurrency, jobs are cloned and the clones are added to the parent scheduler. */
     start: function(callback) {
         clearTimeout(this.warningTimeoutId); // Cancel "didn't start job" warning
         clearTimeout(endTestTimeoutId); // Do not end the process if loop is started
@@ -119,8 +145,8 @@ Job.prototype = {
             if (clone.rps != null) {
                 clone.rps /= this.concurrency;
             }
-            SCHEDULER.addJob(clone);
-            SCHEDULER.startJob(clone);
+            this.scheduler.addJob(clone);
+            this.scheduler.startJob(clone);
         }
         if (this.rps != null && this.rps < Infinity) {
             var rps = this.rps;
@@ -164,7 +190,7 @@ Job.prototype = {
     },
     clone: function() {
         var job = this;
-        var other = new Job({
+        var other = new Job(this.scheduler, {
             fun: job.fun,
             args: job.args,
             concurrency: job.concurrency,
@@ -179,3 +205,6 @@ Job.prototype = {
     },
 }
 
+// Instantiate global SCHEDULER singleton instance
+if (typeof SCHEDULER == "undefined")
+    SCHEDULER = new Scheduler();

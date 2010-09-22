@@ -12,7 +12,7 @@
 // From minutes 5-8, the read load is increased by 100 rps. The test runs for 10 minutes.
 
 var sys = require('sys');
-require('../nodeloadlib');
+require('../dist/nodeloadlib');
 
 function riakUpdate(loopFun, client, url, body) {
     var req = traceableRequest(client, 'GET', url, { 'host': 'localhost' });

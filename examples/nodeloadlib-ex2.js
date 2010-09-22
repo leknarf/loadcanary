@@ -6,12 +6,12 @@
 //
 var http = require('http');
 var sys = require('sys');
-require('../nodeloadlib');
+require('../dist/nodeloadlib');
 sys.puts("Test server on localhost:9000.");
 http.createServer(function (req, res) {
-    res.sendHeader((Math.random() < .8) ? 200 : 404, {'Content-Type': 'text/plain'});
+    res.writeHead((Math.random() < .8) ? 200 : 404, {'Content-Type': 'text/plain'});
     res.write('foo\n');
-    res.close();
+    res.end();
 }).listen(9000);
 
 var test = addTest({

@@ -1,6 +1,13 @@
 // ------------------------------------
 // Main HTTP load testing interface
 // ------------------------------------
+//
+// This file contains the primary API for using nodeload to construct load tests.
+//
+
+/** TEST_DEFAULTS defines all of the parameters that can be set in a test specifiction passed
+    to addTest(spec). By default, a test will GET localhost:8080/ as fast as possible with 
+    10 users for 2 minutes. */
 var TEST_DEFAULTS = {
     name: 'Debug test',                     // A descriptive name for the test
 
@@ -30,6 +37,10 @@ var TEST_DEFAULTS = {
                                             // { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter},
                                             // 'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
 }
+
+/** RAMP_DEFAULTS defines all of the parameters that can be set in a ramp-up specifiction passed
+    to addRamp(spec). By default, a ramp will add 100 requests/sec over 10 seconds, adding 1 user
+    each second. */
 var RAMP_DEFAULTS = {
     test: null,                         // The test to ramp up, returned from from addTest()
     numberOfSteps: 10,                  // Number of steps in ramp
@@ -41,6 +52,9 @@ var RAMP_DEFAULTS = {
 var summaryStats = [];
 var endTestTimeoutId;
 
+/** addTest(spec) is the primary method to create a load test with nodeloadlib. See TEST_DEFAULTS for a list
+    of the configuration values that can be provided in the test specification, spec. Remember to call
+    startTests() to kick off the tests defined though addTest(spec)/addRamp(spec). */
 addTest = function(spec) {
     function req(client) {
         if (spec.requestGenerator == null) {
@@ -109,6 +123,8 @@ addTest = function(spec) {
     return s;
 }
 
+/** addRamp(spec) defines a step-wise ramp-up of the load in a given test defined by a pervious addTest(spec)
+    call. See RAMP_DEFAULTS for a list of the parameters that can be specified in the ramp specification, spec. */
 addRamp = function(spec) {
     defaults(spec, RAMP_DEFAULTS);
     var ramp = function() {
@@ -129,17 +145,22 @@ addRamp = function(spec) {
     });
 }
 
+/** Start all tests were added via addTest(spec) and addRamp(spec). When all tests complete, callback will
+    be called. If stayAliveAfterDone is true, then the nodeload HTTP server will remain running. Otherwise,
+    the server will automatically terminate once the tests are finished. */
 startTests = function(callback, stayAliveAfterDone) {
     HTTP_REPORT.setText("In progress...");
     SCHEDULER.startAll(testsComplete(callback, stayAliveAfterDone));
 }
 
+/** A convenience function equivalent to addTest() followed by startTests() */
 runTest = function(spec, callback, stayAliveAfterDone) {
     var t = addTest(spec);
     startTests(callback, stayAliveAfterDone);
     return t;
 }
 
+/** Stop all tests and shutdown nodeload */
 endTest = function() {
     qputs("\nFinishing...");
     closeAllLogs();
@@ -147,20 +168,8 @@ endTest = function() {
     setTimeout(process.exit, 500);
 }
 
-setTestConfig = function(configType) {
-    var refreshPeriod;
-    if (configType == 'long') {
-        refreshPeriod = 10000;
-        TEST_DEFAULTS.reportInterval = 10;
-    } else {
-        refreshPeriod = 2000;
-        TEST_DEFAULTS.reportInterval = 2;
-    }
-    if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
-        SUMMARY_HTML_REFRESH_PERIOD = refreshPeriod;
-    }
-}
-    
+/** Use traceableRequest instead of built-in node.js `http.Client.request()` when tracking the "uniques" statistic. 
+    It allows URLs to be properly tracked. */
 traceableRequest = function(client, method, path, headers, body) {
     if (headers != null && headers['content-length'] == null) {
         if (body == null) {
@@ -186,6 +195,29 @@ traceableRequest = function(client, method, path, headers, body) {
     return request;
 }
 
+/** Use a predefined configuration type. 'short' and 'long' are supported. In a 'short' duration test,
+    stats reported every 2 seconds. In a 'long' duration test, stats are reported every 10 seconds. */
+setTestConfig = function(configType) {
+    var refreshPeriod;
+    if (configType == 'long') {
+        refreshPeriod = 10000;
+        TEST_DEFAULTS.reportInterval = 10;
+    } else {
+        refreshPeriod = 2000;
+        TEST_DEFAULTS.reportInterval = 2;
+    }
+    if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
+        SUMMARY_HTML_REFRESH_PERIOD = refreshPeriod;
+    }
+}
+
+// =================
+// Private methods
+// =================
+
+/** Returns a callback function that should be called at the end of the load test. It generates the
+    summary file and calls the user specified callback function. It sets a timer for terminating 
+    the nodeload process if no new tests are started by the user specified callback. */
 function testsComplete(callback, stayAliveAfterDone) {
     return function() {
         qprint('done.\n');
@@ -200,11 +232,19 @@ function testsComplete(callback, stayAliveAfterDone) {
     }
 }
 
+/** Copy the value from defaults into spec for all fields that are non-existent or null. */
 function defaults(spec, defaults) {
     for (var i in defaults) {
         if (spec[i] == null) {
             spec[i] = defaults[i];
         }
     }
+}
+
+// Initialize test configuration parameters (logging interval, HTML refresh interval, etc) 
+if (typeof TEST_CONFIG == "undefined") {
+    setTestConfig('short');
+} else {
+    setTestConfig(TEST_CONFIG);
 }
 
