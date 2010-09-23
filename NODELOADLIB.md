@@ -14,7 +14,7 @@ OVERVIEW
 QUICKSTART
 ================
 
-Add `require(./dist/nodeloadlib.js)` and call `runTest()` or `addTest()/startTests()`:
+Add `require('./dist/nodeloadlib')` and call `runTest()` or `addTest()/startTests()`:
 
     // Add to example.js:
     require('./dist/nodeloadlib');
