@@ -193,6 +193,17 @@ monitorByteReceivedLoop = function(bytesReceived, fun) {
     return loopWrapper(fun, null, finish);
 }
 
+/** Each call to fun should return an object {res: http.ClientResponse}. This function reads the http
+    response body and writes its size to bytesSent, which is generally a stats.js#Accumlator object. */
+monitorByteSentLoop = function(bytesSent, fun) {
+    var finish = function(http) {
+        if (http.req.headers['content-length']) {
+            bytesSent.put(http.req.headers['content-length']);
+        }
+    };
+    return loopWrapper(fun, null, finish);
+}
+
 /** Tracks the concurrency of calls to fun and writes it to concurrency, which is generally a
     stats.js#Peak object. */
 monitorConcurrencyLoop = function(concurrency, fun) {
@@ -224,7 +235,7 @@ monitorHttpFailuresLoop = function(successCodes, fun, log) {
                 log.put(JSON.stringify({
                     ts: new Date(), 
                     req: {
-                        headersLines: http.req.headerLines,
+                        headers: http.req.headers,
                         body: http.req.body,
                     },
                     res: {

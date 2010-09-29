@@ -120,6 +120,15 @@ addTest = function(spec) {
         monitored = monitorUniqueUrlsLoop(uniq, monitored);
         stats['uniques'] = uniq;
     }
+    if (spec.stats.indexOf('bytes') >= 0) {
+        var bytes = new Reportable(Accumulator, spec.name + ': Request Bytes', true);
+        monitored = monitorByteSentLoop(bytes, monitored);
+        stats['request-bytes'] = bytes;
+        
+        var bytes = new Reportable(Accumulator, spec.name + ': Response Bytes', true);
+        monitored = monitorByteReceivedLoop(bytes, monitored);
+        stats['response-bytes'] = bytes;
+    }
     if (spec.successCodes != null) {
         monitored = monitorHttpFailuresLoop(spec.successCodes, monitored);
     }
@@ -208,10 +217,7 @@ traceableRequest = function(client, method, path, headers, body) {
 
     var request = client.request(method, path, headers);
 
-    // Current implementation (2/19/10) of http.js in node.js pushes header 
-    // lines to request.output during client.request(). This is currently 
-    // the only way to reliably get all the headers going over the wire.
-    request.headerLines = request.output.slice();
+    request.headers = headers;
     request.path = path;
 
     if (body != null) {
@@ -470,6 +476,17 @@ monitorByteReceivedLoop = function(bytesReceived, fun) {
     return loopWrapper(fun, null, finish);
 }
 
+/** Each call to fun should return an object {res: http.ClientResponse}. This function reads the http
+    response body and writes its size to bytesSent, which is generally a stats.js#Accumlator object. */
+monitorByteSentLoop = function(bytesSent, fun) {
+    var finish = function(http) {
+        if (http.req.headers['content-length']) {
+            bytesSent.put(http.req.headers['content-length']);
+        }
+    };
+    return loopWrapper(fun, null, finish);
+}
+
 /** Tracks the concurrency of calls to fun and writes it to concurrency, which is generally a
     stats.js#Peak object. */
 monitorConcurrencyLoop = function(concurrency, fun) {
@@ -501,7 +518,7 @@ monitorHttpFailuresLoop = function(successCodes, fun, log) {
                 log.put(JSON.stringify({
                     ts: new Date(), 
                     req: {
-                        headersLines: http.req.headerLines,
+                        headers: http.req.headers,
                         body: http.req.body,
                     },
                     res: {
