@@ -1,4 +1,5 @@
-.PHONY: clean compile
+.PHONY: clean templates compile
+SOURCES = src/header.js src/api.js src/evloops.js src/scheduler.js src/remote.js src/report.js src/stats.js src/log.js src/http.js src/summary.tpl.js deps/dygraph.js deps/template.js
 
 all: compile
 
@@ -6,8 +7,9 @@ clean:
 	rm -rf ./dist
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
 
-SOURCES := src/header.js src/api.js src/evloops.js src/scheduler.js src/remote.js src/report.js src/stats.js src/log.js src/http.js deps/dygraph.js
+templates:
+	echo "`head -n1 src/summary.tpl` = '`awk '{ if (NR > 1) { printf \"%s\\\\\\\\n\", $$0 }}' src/summary.tpl`'" > src/summary.tpl.js
 
-compile:
+compile: templates
 	mkdir -p ./dist
-	cat ${SOURCES} > ./dist/nodeloadlib.js
+	cat $(SOURCES) | ./deps/jsmin.js > ./dist/nodeloadlib.js
