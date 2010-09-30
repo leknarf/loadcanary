@@ -10,29 +10,37 @@
 // - SUMMARY_HTML_REFRESH_PERIOD [2]: number of seconds between auto-refresh of HTML summary page
 // 
 
-function getReportAsHtml(report) {
-    var t = template.create(REPORT_SUMMARY_TEMPLATE);
-    return t({querystring: querystring, report: report});
+startHttpServer = function(port) {
+    if (typeof HTTP_SERVER != "undefined")
+        return;
+        
+    qputs('Serving progress report on port ' + port + '.');
+    HTTP_SERVER = http.createServer(function (req, res) {
+        if (req.url == "/" || req.url.match("^/data/main/")) {
+            serveReport(req.url, req, res)
+        } else if (req.url.match("^/remote")) {
+            serveRemote(req.url, req, res);
+        } else if (req.method == "GET") {
+            serveFile("." + req.url, res);
+        } else {
+            res.writeHead(405, {"Content-Length": "0"});
+            res.end();
+        }
+    });
+    HTTP_SERVER.listen(port);
 }
 
-function serveReport(report, response) {
-    var html = getReportAsHtml(report);
-    response.writeHead(200, {"Content-Type": "text/html", "Content-Length": html.length});
-    response.write(html);
-    response.end();
+stopHttpServer = function() {
+    if (typeof HTTP_SERVER == "undefined")
+        return;
+
+    HTTP_SERVER.close();
+    qputs('Shutdown report server.');
 }
 
-function serveChart(chart, response) {
-    if (chart != null) {
-        var data = JSON.stringify(chart.rows);
-        response.writeHead(200, {"Content-Type": "text/csv", "Content-Length": data.length});
-        response.write(data);
-    } else {
-        response.writeHead(404, {"Content-Type": "text/html", "Content-Length": 0});
-        response.write("");
-    }
-    response.end();
-}
+// =================
+// Private methods
+// =================
 
 function serveFile(file, response) {
     fs.stat(file, function(err, stat) {
@@ -85,48 +93,7 @@ function serveFile(file, response) {
     });
 }
 
-startHttpServer = function(port) {
-    if (typeof HTTP_SERVER != "undefined")
-        return;
-        
-    qputs('Serving progress report on port ' + port + '.');
-    HTTP_SERVER = http.createServer(function (req, res) {
-        var now = new Date();
-        if (req.method == "GET" && req.url == "/") {
-            serveReport(HTTP_REPORT, res);
-        } else if (req.method == "GET" && req.url.match("^/data/main/report-text")) {
-            res.writeHead(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
-            res.write(HTTP_REPORT.text);
-            res.end();
-        } else if (req.method == "GET" && req.url.match("^/data/main/")) {
-            serveChart(HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))], res);
-        } else if (req.method == "GET" && req.url.match("^/remote")) {
-            serveRemote(req.url, req, res);
-        } else if (req.url.match("^/remote")) {
-            serveRemote(req.url, req, res);
-        } else if (req.method == "GET") {
-            serveFile("." + req.url, res);
-        } else {
-            res.writeHead(405, {"Content-Length": "0"});
-            res.end();
-        }
-    });
-    HTTP_SERVER.listen(port);
-}
-
-stopHttpServer = function() {
-    if (typeof HTTP_SERVER == "undefined")
-        return;
-
-    HTTP_SERVER.close();
-    qputs('Shutdown report server.');
-}
-
-
 // Define and start HTTP server
-if (typeof HTTP_REPORT == "undefined")
-    HTTP_REPORT = new Report("main");
-
 if (typeof HTTP_SERVER_PORT == "undefined") {
     HTTP_SERVER_PORT = 8000;
     if (process.env['HTTP_SERVER_PORT'] != null) {

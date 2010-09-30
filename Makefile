@@ -6,6 +6,7 @@ all: compile
 clean:
 	rm -rf ./dist
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
+	rm -r src/summary.tpl.js
 
 templates:
 	echo "`head -n1 src/summary.tpl` = '`awk '{ if (NR > 1) { printf \"%s\\\\\\\\n\", $$0 }}' src/summary.tpl`'" > src/summary.tpl.js

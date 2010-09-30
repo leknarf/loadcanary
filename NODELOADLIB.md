@@ -480,7 +480,7 @@ Some handy features worth mentioning.
         $ node dist/nodeloadlib.js
         Serving progress report on port 8000.
         Opening log files.
-        Starting remote test:
+        Received remote command:
         sys.puts("hello!")
         hello!
         

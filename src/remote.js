@@ -56,6 +56,7 @@ remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDon
 // =================
 // Private methods
 // =================
+
 /** Creates a RemoteWorkerPool with the given master and slave and runs the specified code, fun, on 
     every slave node in the pool. fun is a string containing valid Javascript. callback and 
     stayAliveAfterDone are the same as for remoteStart(). */
@@ -238,7 +239,7 @@ function serveRemote(url, req, res) {
     }
     if (req.method == "POST" && url == "/remote") {
         readBody(req, function(remoteFun) {
-            qputs("Starting remote test:\n" + remoteFun);
+            qputs("\nReceived remote command:\n" + remoteFun);
             eval(remoteFun);
             sendStatus(200);
         });
