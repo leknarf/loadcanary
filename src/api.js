@@ -106,7 +106,7 @@ addTest = function(spec) {
         monitored = monitorHttpFailuresLoop(spec.successCodes, monitored);
     }
 
-    var s = SCHEDULER.schedule({
+    var jobs = SCHEDULER.schedule({
         fun: monitored,
         argGenerator: function() { return http.createClient(spec.port, spec.host) },
         concurrency: spec.numClients,
@@ -125,10 +125,14 @@ addTest = function(spec) {
         });
     }
     
-    s.stats = stats;
-    s.testspec = spec;
     summaryStats.push(stats);
-    
+    return {
+        stats: stats,
+        spec: spec,
+        jobs: jobs,
+        fun: monitored
+    }
+
     return s;
 }
 
@@ -136,22 +140,28 @@ addTest = function(spec) {
     call. See RAMP_DEFAULTS for a list of the parameters that can be specified in the ramp specification, spec. */
 addRamp = function(spec) {
     defaults(spec, RAMP_DEFAULTS);
-    var ramp = function() {
+    var rampStep = funLoop(function() {
         SCHEDULER.schedule({
             fun: spec.test.fun,
-            argGenerator: function() { return http.createClient(spec.test.testspec.port, spec.test.testspec.host) },
+            argGenerator: function() { return http.createClient(spec.test.spec.port, spec.test.spec.host) },
             rps: spec.rpsPerStep,
             concurrency: spec.clientsPerStep,
             monitored: false
-        }).start();
-    }
-    return SCHEDULER.schedule({
-        fun: funLoop(ramp),
+        });
+    });
+    var jobs = SCHEDULER.schedule({
+        fun: rampStep,
         delay: spec.delay,
         duration: spec.timeLimit,
         rps: spec.numberOfSteps / spec.timeLimit,
         monitored: false
     });
+
+    return {
+        spec: spec,
+        jobs: jobs,
+        fun: rampStep
+    }
 }
 
 /** Start all tests were added via addTest(spec) and addRamp(spec). When all tests complete, callback will

@@ -1,8 +1,14 @@
 // ------------------------------------
 // HTTP Server
 // ------------------------------------
-var MAX_POINTS_PER_CHART = 60;
-
+//
+// This file defines and starts the nodeload HTTP server. This following global variables may be defined
+// before require()'ing this file to change the server's configuration:
+//
+// - DISABLE_HTTP_SERVER [false]: if true, do not start the HTTP server
+// - HTTP_SERVER_PORT [8000]: the port the HTTP server listens on
+// - SUMMARY_HTML_REFRESH_PERIOD [2]: number of seconds between auto-refresh of HTML summary page
+// 
 function getReportAsHtml(report) {
     var chartdivs = "";
     var plotcharts = "";

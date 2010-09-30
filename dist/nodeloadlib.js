@@ -124,7 +124,7 @@ addTest = function(spec) {
         var bytes = new Reportable(Accumulator, spec.name + ': Request Bytes', true);
         monitored = monitorByteSentLoop(bytes, monitored);
         stats['request-bytes'] = bytes;
-        
+
         var bytes = new Reportable(Accumulator, spec.name + ': Response Bytes', true);
         monitored = monitorByteReceivedLoop(bytes, monitored);
         stats['response-bytes'] = bytes;
@@ -133,7 +133,7 @@ addTest = function(spec) {
         monitored = monitorHttpFailuresLoop(spec.successCodes, monitored);
     }
 
-    var s = SCHEDULER.schedule({
+    var jobs = SCHEDULER.schedule({
         fun: monitored,
         argGenerator: function() { return http.createClient(spec.port, spec.host) },
         concurrency: spec.numClients,
@@ -152,10 +152,14 @@ addTest = function(spec) {
         });
     }
     
-    s.stats = stats;
-    s.testspec = spec;
     summaryStats.push(stats);
-    
+    return {
+        stats: stats,
+        spec: spec,
+        jobs: jobs,
+        fun: monitored
+    }
+
     return s;
 }
 
@@ -163,22 +167,28 @@ addTest = function(spec) {
     call. See RAMP_DEFAULTS for a list of the parameters that can be specified in the ramp specification, spec. */
 addRamp = function(spec) {
     defaults(spec, RAMP_DEFAULTS);
-    var ramp = function() {
+    var rampStep = funLoop(function() {
         SCHEDULER.schedule({
             fun: spec.test.fun,
-            argGenerator: function() { return http.createClient(spec.test.testspec.port, spec.test.testspec.host) },
+            argGenerator: function() { return http.createClient(spec.test.spec.port, spec.test.spec.host) },
             rps: spec.rpsPerStep,
             concurrency: spec.clientsPerStep,
             monitored: false
-        }).start();
-    }
-    return SCHEDULER.schedule({
-        fun: funLoop(ramp),
+        });
+    });
+    var jobs = SCHEDULER.schedule({
+        fun: rampStep,
         delay: spec.delay,
         duration: spec.timeLimit,
         rps: spec.numberOfSteps / spec.timeLimit,
         monitored: false
     });
+
+    return {
+        spec: spec,
+        jobs: jobs,
+        fun: rampStep
+    }
 }
 
 /** Start all tests were added via addTest(spec) and addRamp(spec). When all tests complete, callback will
@@ -611,19 +621,32 @@ Scheduler = function() {
     this.callback = null;
 }
 Scheduler.prototype = {
-    /** Primary function for defining and adding a Job. Start all scheduled jobs by calling startAll(). */
+    /** Primary function for defining and adding new Jobs. Start all scheduled jobs by calling startAll(). If
+        the scheduler is already startd, the jobs are started immediately upon scheduling. */
     schedule: function(spec) {
         defaults(spec, JOB_DEFAULTS);
-        var s = new Job(this, spec);
-        this.addJob(s);
-        return s;
+
+        // concurrency is handled by creating multiple jobs with portions of the load
+        var scheduledJobs = []
+        spec.numberOfTimes /= spec.concurrency;
+        spec.rps /= spec.concurrency;
+        for (var i = 0; i < spec.concurrency; i++) {
+            var s = new Job(spec);
+            this.addJob(s);
+            scheduledJobs.push(s);
+
+            // If the scheduler is already running (startAll() was already called), start new jobs immediately
+            if (this.running) { this.startJob(s); }
+        }
+        
+        return scheduledJobs;
     },
-    addJob: function(s) {
-        this.jobs.push(s);
+    addJob: function(job) {
+        this.jobs.push(job);
     },
-    startJob: function(s) {
+    startJob: function(job) {
         var scheduler = this;
-        s.start(function() { scheduler.checkFinished() });
+        job.start(function() { scheduler.checkFinished() });
     },
     /** Start all scheduled Jobs. When the jobs complete, the user defined function, callback is called. */
     startAll: function(callback) {
@@ -670,21 +693,17 @@ Scheduler.prototype = {
 }
 
 /** At a high level, a Job encapsulates a single load test. A Job instances represents a function that is
-    being executed at a certain rate and concurrency for a set duration. See JOB_DEFAULTS for a list
+    being executed at a certain rate for a set number of times or duration. See JOB_DEFAULTS for a list
     of the configuration values that can be provided in the job specification, spec.
     
     Jobs can be monitored or unmonitored. All monitored jobs must finish before Scheduler considers 
     the entire job group to be complete. Scheduler automatically stops all unmonitored jobs in the
-    same group when all monitored jobs complete.
-    
-    TODO: find a better implementation of concurrency that doesn't require interaction with Scheduler */
-function Job(scheduler, spec) {
+    same group when all monitored jobs complete. */
+function Job(spec) {
     this.id = uid();
-    this.scheduler = scheduler;
     this.fun = spec.fun;
     this.args = spec.args;
     this.argGenerator = spec.argGenerator;
-    this.concurrency = spec.concurrency;
     this.rps = spec.rps;
     this.duration = spec.duration;
     this.numberOfTimes = spec.numberOfTimes;
@@ -701,7 +720,7 @@ function Job(scheduler, spec) {
 Job.prototype = {
     /** Scheduler calls this method to start the job. The user defined function, callback, is called when the
         job completes. This function basically creates and starts a ConditionalLoop instance (which is an "event 
-        based loop"). To handle concurrency, jobs are cloned and the clones are added to the parent scheduler. */
+        based loop"). */
     start: function(callback) {
         clearTimeout(this.warningTimeoutId); // Cancel "didn't start job" warning
         clearTimeout(endTestTimeoutId); // Do not end the process if loop is started
@@ -715,30 +734,12 @@ Job.prototype = {
         var fun = this.fun;
         var conditions = [];
 
-        for (var i = 1; i < this.concurrency; i++) {
-            var clone = this.clone();
-            clone.concurrency = 1;
-            if (clone.numberOfTimes != null) {
-                clone.numberOfTimes /= this.concurrency;
-            }
-            if (clone.rps != null) {
-                clone.rps /= this.concurrency;
-            }
-            this.scheduler.addJob(clone);
-            this.scheduler.startJob(clone);
-        }
         if (this.rps != null && this.rps < Infinity) {
             var rps = this.rps;
-            if (this.concurrency > 1) {
-                rps /= this.concurrency;
-            }
             fun = rpsLoop(rps, fun);
         }
         if (this.numberOfTimes != null && this.numberOfTimes < Infinity) {
             var numberOfTimes = this.numberOfTimes;
-            if (this.concurrency > 1) {
-                numberOfTimes /= this.concurrency;
-            }
             conditions.push(maxExecutions(numberOfTimes));
         }
         if (this.duration != null && this.duration < Infinity) {
@@ -769,10 +770,9 @@ Job.prototype = {
     },
     clone: function() {
         var job = this;
-        var other = new Job(this.scheduler, {
+        var other = new Job({
             fun: job.fun,
             args: job.args,
-            concurrency: job.concurrency,
             argGenerator: job.argGenerator,
             rps: job.rps,
             duration: job.duration,
@@ -1675,8 +1675,14 @@ openAllLogs();
 // ------------------------------------
 // HTTP Server
 // ------------------------------------
-var MAX_POINTS_PER_CHART = 60;
-
+//
+// This file defines and starts the nodeload HTTP server. This following global variables may be defined
+// before require()'ing this file to change the server's configuration:
+//
+// - DISABLE_HTTP_SERVER [false]: if true, do not start the HTTP server
+// - HTTP_SERVER_PORT [8000]: the port the HTTP server listens on
+// - SUMMARY_HTML_REFRESH_PERIOD [2]: number of seconds between auto-refresh of HTML summary page
+// 
 function getReportAsHtml(report) {
     var chartdivs = "";
     var plotcharts = "";

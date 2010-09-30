@@ -26,7 +26,7 @@
 
 var sys = require('sys');
 var path = require('path');
-require.paths.push(path.join(__dirname, 'optparse-js', 'src'));
+require.paths.push(path.join(__dirname, '../deps/optparse-js', 'src'));
 var url = require('url');
 var optparse = require('optparse');
 
