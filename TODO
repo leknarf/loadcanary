@@ -1,5 +1,3 @@
 - Real build system
-- Clean up http "module"
 - Console webpage
 - Fix nodeload.js (build it with nodeloadlib)
-- Error logs should contain full request header lines

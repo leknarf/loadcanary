@@ -54,7 +54,7 @@ monitorByteSentLoop=function(bytesSent,fun){var finish=function(http){if(http.re
 monitorConcurrencyLoop=function(concurrency,fun){var c=0;var start=function(){c++;};var finish=function(){concurrency.put(c--)};return loopWrapper(fun,start,finish);}
 monitorRateLoop=function(rate,fun){var finish=function(){rate.put()};return loopWrapper(fun,null,finish);}
 monitorHttpFailuresLoop=function(successCodes,fun,log){if(log==null)
-log=ERROR_LOG;var finish=function(http){var body="";if(successCodes.indexOf(http.res.statusCode)<0){http.res.on('data',function(chunk){body+=chunk;});http.res.on('end',function(chunk){log.put(JSON.stringify({ts:new Date(),req:{headers:http.req.headers,body:http.req.body,},res:{statusCode:http.res.statusCode,headers:http.res.headers,body:body}}));});}};return loopWrapper(fun,null,finish);}
+log=ERROR_LOG;var finish=function(http){var body="";if(successCodes.indexOf(http.res.statusCode)<0){http.res.on('data',function(chunk){body+=chunk;});http.res.on('end',function(chunk){log.put(JSON.stringify({ts:new Date(),req:{headers:http.req._header,body:http.req.body,},res:{statusCode:http.res.statusCode,headers:http.res.headers,body:body}}));});}};return loopWrapper(fun,null,finish);}
 monitorUniqueUrlsLoop=function(uniqs,fun){var finish=function(http){uniqs.put(http.req.path)};return loopWrapper(fun,null,finish);}
 loopWrapper=function(fun,start,finish){return function(loopFun,args){var startRes;if(start!=null){startRes=start(args);}
 var finishFun=function(result){if(result==null){qputs('Function result is null; did you forget to call loopFun(result)?');}else{if(finish!=null){finish(result,startRes);}}

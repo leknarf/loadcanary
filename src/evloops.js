@@ -235,7 +235,12 @@ monitorHttpFailuresLoop = function(successCodes, fun, log) {
                 log.put(JSON.stringify({
                     ts: new Date(), 
                     req: {
-                        headers: http.req.headers,
+                        // Use the _header "private" member of http.ClientRequest, which is available 
+                        // in the current node release (v0.2.2, 9/30/10). This is the only way to 
+                        // reliably get all of the request headers, since ClientRequest will actually
+                        // add headers beyond what the user specifies in certain conditions, like
+                        // Connection and Transfer-Encoding. 
+                        headers: http.req._header,
                         body: http.req.body,
                     },
                     res: {
