@@ -7,7 +7,6 @@
 //
 // - DISABLE_HTTP_SERVER [false]: if true, do not start the HTTP server
 // - HTTP_SERVER_PORT [8000]: the port the HTTP server listens on
-// - SUMMARY_HTML_REFRESH_PERIOD [2]: number of seconds between auto-refresh of HTML summary page
 // 
 
 startHttpServer = function(port) {
@@ -44,52 +43,23 @@ stopHttpServer = function() {
 
 function serveFile(file, response) {
     fs.stat(file, function(err, stat) {
-        if (err == null) {
-            if (stat.isFile()) {
-                response.writeHead(200, {
-                    'Content-Length': stat.size,
-                });
-
-                fs.open(file, process.O_RDONLY, 0666, function (err, fd) {
-                    if (err == null) {
-                        var pos = 0;
-                        function streamChunk() {
-                            fs.read(fd, 16*1024, pos, "binary", function(err, chunk, bytesRead) {
-                                if (err == null) {
-                                    if (!chunk) {
-                                        fs.close(fd);
-                                        response.end();
-                                        return;
-                                    }
-
-                                    response.write(chunk, "binary");
-                                    pos += bytesRead;
-
-                                    streamChunk();
-                                } else {
-                                    response.writeHead(500, {"Content-Type": "text/plain"});
-                                    response.write("Error reading file " + file);
-                                    response.end();
-                                }
-                            });
-                        }
-                        streamChunk();
-                    } else {
-                        response.writeHead(500, {"Content-Type": "text/plain"});
-                        response.write("Error opening file " + file);
-                        response.end();
-                    }
-                });
-            } else{
-                response.writeHead(404, {"Content-Type": "text/plain"});
-                response.write("Not a file: " + file);
-                response.end();
-            } 
-        } else {
+        if (err != null) {
             response.writeHead(404, {"Content-Type": "text/plain"});
             response.write("Cannot find file: " + file);
             response.end();
+            return;
         }
+        
+        fs.readFile(file, "binary", function (err, data) {
+            if (err == null) {
+                response.writeHead(200, { 'Content-Length': data.length });
+                response.write(data, "binary");
+            } else {
+                response.writeHead(500, {"Content-Type": "text/plain"});
+                response.write("Error opening file " + file + ": " + err);
+            }
+            response.end();
+        });
     });
 }
 
