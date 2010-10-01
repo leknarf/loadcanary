@@ -327,10 +327,7 @@ LogFile.prototype = {
         this.open();
     },
     open: function() {
-        this.fd = fs.openSync(
-            this.filename,
-            process.O_WRONLY|process.O_CREAT|process.O_TRUNC,
-            process.S_IRWXU|process.S_IRWXG|process.S_IROTH);
+        this.fd = fs.openSync(this.filename, "w");
     },
     close: function() {
         fs.closeSync(this.fd);
