@@ -475,4 +475,6 @@ var STATS_MANAGER = {
         this.stats = [];
     }
 }
-TEST_MONITOR.register(function() { STATS_MANAGER.updateStats() });
+TEST_MONITOR.on('test', function(test) { if (test.stats) STATS_MANAGER.addStats(test.stats) });
+TEST_MONITOR.on('update', function() { STATS_MANAGER.updateStats() });
+TEST_MONITOR.on('end', function() { STATS_MANAGER.reset() });

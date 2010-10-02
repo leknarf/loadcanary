@@ -27,11 +27,11 @@ function Chart(name) {
     this.name = name;
     this.uid = uid();
     this.columns = ["time"];
-    this.rows = [[0]];
+    this.rows = [[timeFromTestStart()]];
 }
 Chart.prototype = {
     put: function(data) {
-        var row = [Math.floor((new Date().getTime() - START) / 600) / 100]; // 100ths of a minute
+        var row = [timeFromTestStart()]; 
         for (item in data) {
             var col = this.columns.indexOf(item);
             if (col < 0) {
@@ -63,23 +63,10 @@ writeHtmlSummary = function() {
 // Private methods
 // =================
 
-// The global report manager that keeps reports up to date during a load test
-var REPORT_MANAGER = {
-    reports: {},
-    addReport: function(report) {
-        this.reports[report.name] = report;
-    },
-    updateReports: function() {
-        for (var r in this.reports) {
-            this.reports[r].update();
-        }
-        writeHtmlSummary();
-    },
-    reset: function() {
-        this.reports = {};
-    }
+/** current time from start of nodeload process in 100ths of a minute */
+function timeFromTestStart() {
+    return (Math.floor((new Date().getTime() - START) / 600) / 100);
 }
-TEST_MONITOR.register(function() { REPORT_MANAGER.updateReports() });
 
 /** Returns an updater function that cna be used with the Report() constructor. This updater write the
     current state of "stats" to the report summary and charts. */
@@ -113,11 +100,11 @@ function serveReport(url, req, res) {
         res.writeHead(200, {"Content-Type": "text/html", "Content-Length": html.length});
         res.write(html);
     } else if (req.method == "GET" && req.url.match("^/data/([^/]+)/([^/]+)")) {
-        var urlparts = req.url.split("/");
+        var urlparts = querystring.unescape(req.url).split("/");
         var retobj = null;
         var report = REPORT_MANAGER.reports[urlparts[2]];
         if (report != null) {
-            var chartname = querystring.unescape(urlparts[3]);
+            var chartname = urlparts[3];
             if (chartname == "summary") {
                 retobj = report.summary;
             } else if (report.charts[chartname] != null) {
@@ -136,6 +123,34 @@ function serveReport(url, req, res) {
     }
     res.end();
 }
+
+// The global report manager that keeps reports up to date during a load test
+var REPORT_MANAGER = {
+    reports: {},
+    addReport: function(report) {
+        this.reports[report.name] = report;
+    },
+    updateReports: function() {
+        for (var r in this.reports) {
+            this.reports[r].update();
+        }
+        writeHtmlSummary();
+    },
+    reset: function() {
+        this.reports = {};
+    }
+}
+TEST_MONITOR.on('update', function() { REPORT_MANAGER.updateReports() });
+TEST_MONITOR.on('end', function() { 
+    for (var r in REPORT_MANAGER.reports) {
+        REPORT_MANAGER.reports[r].updater = null;
+    }
+});
+TEST_MONITOR.on('test', function(test) { 
+    // when a new test is created, add a report that contains all the test stats
+    if (test.stats) 
+        REPORT_MANAGER.addReport(new Report(test.spec.name, updateReportFromStats(test.stats)))
+});
 
 if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
     SUMMARY_HTML_REFRESH_PERIOD = 2000;

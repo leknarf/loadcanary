@@ -31,11 +31,7 @@ var TEST_DEFAULTS = {
     stats: ['latency', 'result-codes'],     // Specify list of: latency, result-codes, uniques, concurrency. Note that "uniques"
                                             // only shows up in summary report and requests must be made with traceableRequest().
                                             // Not doing so will result in reporting only 2 uniques.
-    latencyConf: {percentiles: [.95,.99]},  // Set latencyConf.percentiles to percentiles to report for the 'latency' stat
-    reportFun: null,                        // Function called each REPORT_INTERVAL that takes a param, test, which refers to 
-                                            // the current test. test.stats is a map of { 'latency': Reportable(Histogram), 
-                                            // 'result-codes': Reportable(ResultsCounter}, 'uniques': Reportable(Uniques),
-                                            // 'concurrency': Reportable(Peak) }
+    latencyConf: {percentiles: [.95,.99]}   // Set latencyConf.percentiles to percentiles to report for the 'latency' stat
 }
 
 /** RAMP_DEFAULTS defines all of the parameters that can be set in a ramp-up specifiction passed
@@ -50,11 +46,13 @@ var RAMP_DEFAULTS = {
     delay: 0                            // Number of seconds to wait before ramping up. 
 }
 
-var LOAD_TESTS = [];
-
 /** addTest(spec) is the primary method to create a load test with nodeloadlib. See TEST_DEFAULTS for a list
     of the configuration values that can be provided in the test specification, spec. Remember to call
-    startTests() to kick off the tests defined though addTest(spec)/addRamp(spec). */
+    startTests() to kick off the tests defined though addTest(spec)/addRamp(spec). 
+    
+    The returned test.stats is a map of { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter}, 
+    'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
+    */
 addTest = function(spec) {
     function req(client) {
         if (spec.requestGenerator == null) {
@@ -115,18 +113,14 @@ addTest = function(spec) {
         numberOfTimes: spec.numRequests,
         delay: spec.delay
     });
-    var report = new Report(spec.name, updateReportFromStats(stats));
     var test = {
         spec: spec,
         stats: stats,
-        report: report,
         jobs: jobs,
         fun: monitored
     }
 
-    STATS_MANAGER.addStats(stats);
-    REPORT_MANAGER.addReport(report);
-    LOAD_TESTS.push(test);
+    TEST_MONITOR.addTest(test);
     
     return test;
 }
@@ -163,7 +157,7 @@ addRamp = function(spec) {
     be called. If stayAliveAfterDone is true, then the nodeload HTTP server will remain running. Otherwise,
     the server will automatically terminate once the tests are finished. */
 startTests = function(callback, stayAliveAfterDone) {
-    TEST_MONITOR.prepareForTest();
+    TEST_MONITOR.start();
     SCHEDULER.startAll(testsComplete(callback, stayAliveAfterDone));
 }
 
@@ -172,14 +166,6 @@ runTest = function(spec, callback, stayAliveAfterDone) {
     var t = addTest(spec);
     startTests(callback, stayAliveAfterDone);
     return t;
-}
-
-/** Stop all tests and shutdown nodeload */
-endTest = function() {
-    qputs("\nFinishing...");
-    closeAllLogs();
-    stopHttpServer();
-    setTimeout(process.exit, 500);
 }
 
 /** Use traceableRequest instead of built-in node.js `http.Client.request()` when tracking the "uniques" statistic. 
@@ -223,62 +209,29 @@ setTestConfig = function(configType) {
 // =================
 // Private methods
 // =================
-var endTestTimeoutId;
-
-/** The global test monitor. Register functions here that should be run at regular intervals
-    during the load test, such as processing & logging statistics. */
-var TEST_MONITOR = {
-    interval: 2000,
-    funs: [ callUserReportFuns ],
-    jobs: null,
-    register: function(fun) {
-        this.funs.push(fun);
-    },
-    prepareForTest: function() {
-        var funs = this.funs;
-        var tick = function() { for (var i in funs) { funs[i](); } }
-        jobs = SCHEDULER.schedule({
-            fun: funLoop(tick),
-            rps: 1000/this.interval,
-            delay: this.interval/1000,
-            monitored: false
-        });
-    }
-}
-
-function callUserReportFuns() {
-    for (var i in LOAD_TESTS)
-        if (LOAD_TESTS[i].spec.reportFun != null)
-            LOAD_TESTS[i].spec.reportFun(LOAD_TEST[i]);
-    qprint('.');
-}
-
-/** Returns a callback function that should be called at the end of the load test. It generates the
-    summary file and calls the user specified callback function. It sets a timer for terminating 
-    the nodeload process if no new tests are started by the user specified callback. */
+/** Returns a callback function that should be called at the end of the load test. It calls the user
+    specified callback function and sets a timer for terminating the nodeload process if no new tests
+    are started by the user specified callback. */
 function testsComplete(callback, stayAliveAfterDone) {
     return function() {
-        qprint('done.\n');
-        summaryReport(summaryStats);
-        STATS_MANAGER.reset();
-        REPORT_MANAGER.reset();
-        if (SLAVE_CONFIG == null && !stayAliveAfterDone) {
-            // End process if not a slave and no more tests are started within 3 seconds.
-            endTestTimeoutId = setTimeout(endTest, 3000);
-        }
-        if (callback != null) {
+        TEST_MONITOR.stop();
+        if (callback != null)
             callback();
-        }
+        if (SLAVE_CONFIG == null && !stayAliveAfterDone)
+            checkToExitProcess();
     }
 }
 
-/** Copy the value from defaults into spec for all fields that are non-existent or null. */
-function defaults(spec, defaults) {
-    for (var i in defaults) {
-        if (spec[i] == null) {
-            spec[i] = defaults[i];
+/** Wait 3 seconds and check if anyone has restarted SCHEDULER (i.e. more tests). End process if not. */
+function checkToExitProcess() {
+    setTimeout(function() {
+        if (!SCHEDULER.running) {
+            qputs("\nFinishing...");
+            closeAllLogs();
+            stopHttpServer();
+            setTimeout(process.exit, 500);
         }
-    }
+    }, 3000);
 }
 
 // Initialize test configuration parameters (logging interval, etc) 

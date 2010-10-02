@@ -134,7 +134,6 @@ Job.prototype = {
         based loop"). */
     start: function(callback) {
         clearTimeout(this.warningTimeoutId); // Cancel "didn't start job" warning
-        clearTimeout(endTestTimeoutId); // Do not end the process if loop is started
 
         if (this.fun == null)
             qputs("WARN: scheduling a null loop");

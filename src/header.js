@@ -25,3 +25,11 @@ qprint = function(s) {
         sys.print(s);
     }
 }
+
+defaults = function(obj, defaults) {
+    for (var i in defaults) {
+        if (obj[i] == null) {
+            obj[i] = defaults[i];
+        }
+    }
+}

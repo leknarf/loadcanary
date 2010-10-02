@@ -70,7 +70,7 @@ function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
     A slave node differ from normal (master) node because it sends statistics to a master node. */
 function registerSlave(id, master) {
     SLAVE_CONFIG = new RemoteSlave(id, master);
-    TEST_MONITOR.register(function() { SLAVE_CONFIG.reportProgress() });
+    TEST_MONITOR.on('update', function() { SLAVE_CONFIG.reportProgress() });
 }
 
 /** A RemoteSlave represents a slave nodeload instance. RemoteSlave.reportProgress() POSTs statistics

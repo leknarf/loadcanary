@@ -4,14 +4,20 @@ REPORT_SUMMARY_TEMPLATE
         <title>Test Results</title>
         <script language="javascript" type="text/javascript"><!--
             <%=DYGRAPH_SOURCE%>
+            function jsonToTable(json) {
+                var txt = "";
+                for (var i in json)
+                    txt += "<tr><td class=label>" + i + "</td><td>" + json[i] + "</td></tr>";
+                return "<table>" + txt + "</table>";
+            };
         --></script>
         <style><!--
             body { margin: 0px; font: 13px Arial, Helvetica, sans-serif; }
             h1 { font-size: 2.4em; }
             p, ol, ul { line-height: 30%; }
             a:hover { text-decoration: none; }
-            #main { float:left; width: 820px; }
-            #sidebar { float:right; width: 200px;}
+            #main { float:left; width: 740px; }
+            #sidebar { float:right; width: 260px; height: 100%; border-left: #BFC9AE solid 1px; margin-left: 10px; padding-left: 10px;}
             #header { width: 100%; height: 100px; margin: 0px auto; color: #FFFFFF; background: #699C4D; border: 3px solid darkgreen; border-style: none none solid none;}
             #header h1 { width: 1024; padding: 25px 0px 0px 0px; margin: 0px auto; font-weight: normal; }
             #header p { width: 1024; padding: 15px 0px 0px 0px; margin: 0px auto; }
@@ -22,6 +28,8 @@ REPORT_SUMMARY_TEMPLATE
             #footer { clear: both; width: 1024px; height: 50px; margin: 0px auto 30px auto; color: #FFFFFF; background: #699C4D; }
             #footer p { padding: 19px 0px 0px 0px; text-align: center; line-height: normal; font-size: smaller; }
             #footer a { color: #FFFFFF; }
+            .statsTable table { font-size: small; font-variant: small-caps; border-spacing: 10px 1px; }
+            .statsTable .label { text-align:right; }
         --></style>
     </head>
 
@@ -34,17 +42,20 @@ REPORT_SUMMARY_TEMPLATE
                 <% var chart = reports[i].charts[j]; %>
                     <div class="post"><h2><%=chart.name%></h2>
                         <div class="entry" style="width:100%;float:left">
-                            <div id="chart<%=chart.uid%>" style="float:left;width:700px;height:200px;"></div>
-                            <div id="chart<%=chart.uid%>legend" style="float:left;width:110px;height:200px;"></div>
+                            <div id="chart<%=chart.uid%>" style="float:left;width:660px;height:200px;"></div>
+                            <div id="chart<%=chart.uid%>legend" style="float:left;width:80px;height:200px;"></div>
                         </div>
                     </div>
                 <% } %>
                 <% } %>
             </div>
             <div id="sidebar">
-                <div class="post"><h2>Summary</h2><div class="entry">
+                <div class="post"><h2>Cumulative</h2><div class="entry">
                     <% for (var i in reports) { %>
-                        <pre id="reportSummary<%=reports[i].uid%>">CUMULATIVE STATS GO HERE</pre>
+                        <p class="statsTable" id="reportSummary<%=reports[i].uid%>"/></p>
+                        <script language="javascript" type="text/javascript">
+                            document.getElementById("reportSummary<%=reports[i].uid%>").innerHTML = jsonToTable(<%=JSON.stringify(reports[i].summary)%>);
+                        </script>
                     <% } %>
                 </div></div>
             </div>
@@ -53,11 +64,17 @@ REPORT_SUMMARY_TEMPLATE
         
         <script id="source" language="javascript" type="text/javascript">
             <% for (var i in reports) { %>
-                if(navigator.appName == "Microsoft Internet Explorer") { http<%=reports[i].uid%> = new ActiveXObject("Microsoft.XMLHTTP"); } else { http<%=reports[i].uid%> = new XMLHttpRequest(); }
+                <% var rid = reports[i].uid; %>
+                if(navigator.appName == "Microsoft Internet Explorer") { http<%=rid%> = new ActiveXObject("Microsoft.XMLHTTP"); } else { http<%=rid%> = new XMLHttpRequest(); }
                 setInterval(function() {
-                   http.open("GET", "/data/<%=querystring.escape(reports[i].name)%>/summary");
-                   http.onreadystatechange=function() { if(http.readyState == 4 && http.status == 200) { document.getElementById("reportSummary<%=reports[i].uid%>").innerText = http.responseText }};
-                   http.send(null);
+                    http<%=rid%>.open("GET", "/data/<%=querystring.escape(reports[i].name)%>/summary");
+                    http<%=rid%>.onreadystatechange=function() { 
+                        if(http<%=rid%>.readyState == 4 && http<%=rid%>.status == 200) {
+                            summary = JSON.parse(http<%=rid%>.responseText);
+                            document.getElementById("reportSummary<%=rid%>").innerHTML = jsonToTable(summary);
+                        }
+                    }
+                    http<%=rid%>.send(null);
                 }, <%=SUMMARY_HTML_REFRESH_PERIOD%>);
 
                 <% for (var j in reports[i].charts) { %>

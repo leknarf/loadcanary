@@ -1,5 +1,5 @@
 .PHONY: clean templates compile
-SOURCES = src/header.js src/api.js src/evloops.js src/scheduler.js src/remote.js src/stats.js src/report.js src/log.js src/http.js src/summary.tpl.js deps/dygraph.js deps/template.js
+SOURCES = src/header.js src/api.js src/evloops.js src/scheduler.js src/monitor.js src/remote.js src/stats.js src/report.js src/log.js src/http.js src/summary.tpl.js deps/dygraph.js deps/template.js
 
 all: compile
 
