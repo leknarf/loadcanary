@@ -283,19 +283,3 @@ loopWrapper = function(fun, start, finish) {
         fun(finishFun, args);
     }
 }
-
-/** Returns a ConditionalLoop compatible loop function that calls progressFun(stats) and 
-    report.js#defaultProgressReport(stats) during each iteration. If this is a slave nodeload instance
-    (SLAVE_CONFIG is defined), the statistics are also reported to the master node. A progressReportLoop
-    should be scheduled in SCHEDULER to periodically gather statistics during a load test. */
-progressReportLoop = function(stats, progressFun) {
-    return function(loopFun) {
-        if (progressFun != null)
-            progressFun(stats);
-        if (SLAVE_CONFIG != null)
-            SLAVE_CONFIG.reportProgress(stats);
-        defaultProgressReport(stats);
-        loopFun();
-    }
-}
-

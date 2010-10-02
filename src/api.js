@@ -32,10 +32,10 @@ var TEST_DEFAULTS = {
                                             // only shows up in summary report and requests must be made with traceableRequest().
                                             // Not doing so will result in reporting only 2 uniques.
     latencyConf: {percentiles: [.95,.99]},  // Set latencyConf.percentiles to percentiles to report for the 'latency' stat
-    reportInterval: 2,                      // Seconds between each progress report
-    reportFun: null,                        // Function called each reportInterval that takes a param, stats, which is a map of
-                                            // { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter},
-                                            // 'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
+    reportFun: null,                        // Function called each REPORT_INTERVAL that takes a param, test, which refers to 
+                                            // the current test. test.stats is a map of { 'latency': Reportable(Histogram), 
+                                            // 'result-codes': Reportable(ResultsCounter}, 'uniques': Reportable(Uniques),
+                                            // 'concurrency': Reportable(Peak) }
 }
 
 /** RAMP_DEFAULTS defines all of the parameters that can be set in a ramp-up specifiction passed
@@ -49,8 +49,8 @@ var RAMP_DEFAULTS = {
     clientsPerStep: 1,                  // The number of connections to add to the test at each step.
     delay: 0                            // Number of seconds to wait before ramping up. 
 }
-var summaryStats = [];
-var endTestTimeoutId;
+
+var LOAD_TESTS = [];
 
 /** addTest(spec) is the primary method to create a load test with nodeloadlib. See TEST_DEFAULTS for a list
     of the configuration values that can be provided in the test specification, spec. Remember to call
@@ -105,7 +105,7 @@ addTest = function(spec) {
     if (spec.successCodes != null) {
         monitored = monitorHttpFailuresLoop(spec.successCodes, monitored);
     }
-
+    
     var jobs = SCHEDULER.schedule({
         fun: monitored,
         argGenerator: function() { return http.createClient(spec.port, spec.host) },
@@ -115,25 +115,20 @@ addTest = function(spec) {
         numberOfTimes: spec.numRequests,
         delay: spec.delay
     });
-
-    if (spec.reportInterval != null) {
-        SCHEDULER.schedule({
-            fun: progressReportLoop(stats, spec.reportFun),
-            rps: 1/spec.reportInterval,
-            delay: spec.reportInterval,
-            monitored: false
-        });
-    }
-    
-    summaryStats.push(stats);
-    return {
-        stats: stats,
+    var report = new Report(spec.name, updateReportFromStats(stats));
+    var test = {
         spec: spec,
+        stats: stats,
+        report: report,
         jobs: jobs,
         fun: monitored
     }
 
-    return s;
+    STATS_MANAGER.addStats(stats);
+    REPORT_MANAGER.addReport(report);
+    LOAD_TESTS.push(test);
+    
+    return test;
 }
 
 /** addRamp(spec) defines a step-wise ramp-up of the load in a given test defined by a pervious addTest(spec)
@@ -168,7 +163,7 @@ addRamp = function(spec) {
     be called. If stayAliveAfterDone is true, then the nodeload HTTP server will remain running. Otherwise,
     the server will automatically terminate once the tests are finished. */
 startTests = function(callback, stayAliveAfterDone) {
-    HTTP_REPORT.setText("In progress...");
+    TEST_MONITOR.prepareForTest();
     SCHEDULER.startAll(testsComplete(callback, stayAliveAfterDone));
 }
 
@@ -217,19 +212,46 @@ setTestConfig = function(configType) {
     var refreshPeriod;
     if (configType == 'long') {
         refreshPeriod = 10000;
-        TEST_DEFAULTS.reportInterval = 10;
     } else {
         refreshPeriod = 2000;
-        TEST_DEFAULTS.reportInterval = 2;
     }
-    if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
-        SUMMARY_HTML_REFRESH_PERIOD = refreshPeriod;
-    }
+
+    SUMMARY_HTML_REFRESH_PERIOD = refreshPeriod;
+    TEST_MONITOR.interval = refreshPeriod;
 }
 
 // =================
 // Private methods
 // =================
+var endTestTimeoutId;
+
+/** The global test monitor. Register functions here that should be run at regular intervals
+    during the load test, such as processing & logging statistics. */
+var TEST_MONITOR = {
+    interval: 2000,
+    funs: [ callUserReportFuns ],
+    jobs: null,
+    register: function(fun) {
+        this.funs.push(fun);
+    },
+    prepareForTest: function() {
+        var funs = this.funs;
+        var tick = function() { for (var i in funs) { funs[i](); } }
+        jobs = SCHEDULER.schedule({
+            fun: funLoop(tick),
+            rps: 1000/this.interval,
+            delay: this.interval/1000,
+            monitored: false
+        });
+    }
+}
+
+function callUserReportFuns() {
+    for (var i in LOAD_TESTS)
+        if (LOAD_TESTS[i].spec.reportFun != null)
+            LOAD_TESTS[i].spec.reportFun(LOAD_TEST[i]);
+    qprint('.');
+}
 
 /** Returns a callback function that should be called at the end of the load test. It generates the
     summary file and calls the user specified callback function. It sets a timer for terminating 
@@ -238,6 +260,8 @@ function testsComplete(callback, stayAliveAfterDone) {
     return function() {
         qprint('done.\n');
         summaryReport(summaryStats);
+        STATS_MANAGER.reset();
+        REPORT_MANAGER.reset();
         if (SLAVE_CONFIG == null && !stayAliveAfterDone) {
             // End process if not a slave and no more tests are started within 3 seconds.
             endTestTimeoutId = setTimeout(endTest, 3000);
@@ -257,10 +281,7 @@ function defaults(spec, defaults) {
     }
 }
 
-// Initialize test configuration parameters (logging interval, HTML refresh interval, etc) 
-if (typeof TEST_CONFIG == "undefined") {
-    setTestConfig('short');
-} else {
-    setTestConfig(TEST_CONFIG);
+// Initialize test configuration parameters (logging interval, etc) 
+if (typeof REPORT_INTERVAL != "undefined") {
+    TEST_MONITOR.interval = REPORT_INTERVAL;
 }
-

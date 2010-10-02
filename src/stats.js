@@ -351,7 +351,7 @@ NullLog.prototype = {
     summary: function() { return { file: 'null', written: 0 } }
 }
 
-Reportable = function(backend, name, addToHttpReport) {
+Reportable = function(backend, name, trend) {
     var backendparams = null;
     if (name == null)
         name = "";
@@ -365,11 +365,7 @@ Reportable = function(backend, name, addToHttpReport) {
     this.length = 0;
     this.interval = new backend(backendparams);
     this.cumulative = new backend(backendparams);
-    this.addToHttpReport = addToHttpReport;
-    
-    if (addToHttpReport) {
-        HTTP_REPORT.addChart(this.name);
-    }
+    this.trend = trend;
 }
 Reportable.prototype = {
     put: function(stat) {
@@ -387,8 +383,10 @@ Reportable.prototype = {
         this.cumulative.clear();
     }, 
     next: function() {
-        if (this.interval.length > 0)
+        this.lastSummary = this.summary();
+        if (this.interval.length > 0) {
             this.interval.clear();
+        }
     },
     summary: function() {
         return { interval: this.interval.summary(), cumulative: this.cumulative.summary() };
@@ -437,6 +435,10 @@ nextPareto = function(min, max, shape) {
     return Math.pow((rnd*(h-l)-h) / -(h*l), -1/shape)-1+min;
 }
 
+// =================
+// Private methods
+// =================
+
 function statsClassFromString(name) {
     types = {
         "Histogram": Histogram, 
@@ -452,3 +454,25 @@ function statsClassFromString(name) {
     return types[name];
 }
 
+// The global statistics manager that updates test stats and writes to the stats log throughout a load test
+var STATS_MANAGER = {
+    stats: [],
+    addStats: function(stats) {
+        for (var i in stats) { this.stats.push(stats[i]); }
+    },
+    updateStats: function() {
+        var out = '{"ts": ' + JSON.stringify(new Date());
+        for (var i in this.stats) {
+            var stat = this.stats[i]
+            stat.next();
+            var summary = this.stats[i].lastSummary.interval;
+            out += ', "' + stat.name + '": ' + JSON.stringify(summary);
+        }
+        out += "}";
+        STATS_LOG.put(out + ",");
+    },
+    reset: function() {
+        this.stats = [];
+    }
+}
+TEST_MONITOR.register(function() { STATS_MANAGER.updateStats() });

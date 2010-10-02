@@ -2,30 +2,24 @@
 // Progress Reporting
 // ------------------------------------
 
-function Report(name) {
+function Report(name, updater) {
     this.name = name;
-    this.clear();
+    this.uid = uid();
+    this.summary = {};
+    this.charts = {};
+    this.updater = updater;
 }
 Report.prototype = {
-    setText: function(text) {
-        this.text = text;
-    },
-    puts: function(text) {
-        this.text += text + "\n";
-    },
-    addChart: function(name) {
-        var chart = new Chart(name);
-        if (this.charts[chart.name] != null)
-            chart.name += "-1";
-        this.charts[chart.name] = chart;
-        return chart;
+    getChart: function(name) {
+        if (this.charts[name] == null)
+            this.charts[name] = new Chart(name);
+        return this.charts[name];
     },
     removeChart: function(name) {
         delete this.charts[name];
     },
-    clear: function() {
-        this.text = "";
-        this.charts = {};
+    update: function() {
+        if (this.updater != null) { this.updater(this); }
     }
 }
 
@@ -59,9 +53,9 @@ enableReportSummaryOnProgress = function(enabled) {
     progressSummaryEnabled = enabled;
 }
 
-writeReport = function() {
+writeHtmlSummary = function() {
     if (!DISABLE_LOGS) {
-        fs.writeFile(SUMMARY_HTML, getReportAsHtml(HTTP_REPORT), "ascii");
+        fs.writeFile(SUMMARY_HTML, getReportsAsHtml(REPORT_MANAGER.reports), "ascii");
     }
 }
 
@@ -69,60 +63,43 @@ writeReport = function() {
 // Private methods
 // =================
 
-var progressSummaryEnabled = false;
-
-function defaultProgressReport(stats) {
-    var out = '{"ts": ' + JSON.stringify(new Date());
-    for (var i in stats) {
-        var stat = stats[i];
-        var summary = stat.interval.summary();
-        out += ', "' + stat.name + '": '
-        if (stat.interval.length > 0) {
-            out += JSON.stringify(summary);
+// The global report manager that keeps reports up to date during a load test
+var REPORT_MANAGER = {
+    reports: {},
+    addReport: function(report) {
+        this.reports[report.name] = report;
+    },
+    updateReports: function() {
+        for (var r in this.reports) {
+            this.reports[r].update();
         }
-        if (HTTP_REPORT.charts[stat.name] != null) {
-            HTTP_REPORT.charts[stat.name].put(summary);
-        }
-        stats[i].next();
-    }
-    out += "}";
-    STATS_LOG.put(out + ",");
-    qprint('.');
-
-    if (progressSummaryEnabled) {
-        summaryReport(summaryStats);
-    } else {
-        writeReport();
+        writeHtmlSummary();
+    },
+    reset: function() {
+        this.reports = {};
     }
 }
+TEST_MONITOR.register(function() { REPORT_MANAGER.updateReports() });
 
-function summaryReport(statsList) {
-    function pad(str, width) {
-        return str + (new Array(width-str.length)).join(" ");
-    }
-    var out = pad("  Test Duration:", 20) + ((new Date() - START)/60000).toFixed(1) + " minutes\n";
-    
-    // statsList is a list of maps: [{'name': Reportable, ...}, ...]
-    for (var s in statsList) {
-        var stats = statsList[s];
-        for (var i in stats) {
-            var stat = stats[i];
-            var summary = stat.cumulative.summary();
-            out += "\n" +
-                   "  " + stat.name + "\n" +
-                   "  " + (new Array(stat.name.length+1)).join("-") + "\n";
-            for (var j in summary) {
-                out += pad("    " + j + ":", 20)  + summary[j] + "\n";
+/** Returns an updater function that cna be used with the Report() constructor. This updater write the
+    current state of "stats" to the report summary and charts. */
+function updateReportFromStats(stats) {
+    return function(report) {
+        for (var s in stats) {
+            var stat = stats[s];
+            if (stat.lastSummary) {
+                if (stat.trend)
+                    report.getChart(stat.name).put(stat.lastSummary.interval);
+                for (var i in stat.lastSummary.cumulative) 
+                    report.summary[stat.name + " " + i] = stat.lastSummary.cumulative[i];
             }
         }
     }
-    HTTP_REPORT.setText(out);
-    writeReport();
 }
 
-function getReportAsHtml(report) {
+function getReportsAsHtml(reports) {
     var t = template.create(REPORT_SUMMARY_TEMPLATE);
-    return t({querystring: querystring, report: report});
+    return t({querystring: querystring, reports: reports});
 }
 
 function getChartAsJson(chart) {
@@ -132,17 +109,24 @@ function getChartAsJson(chart) {
 /** Handler for all the requests to / and /data/main. See http.js#startHttpServer(). */
 function serveReport(url, req, res) {
     if (req.method == "GET" && url == "/") {
-        var html = getReportAsHtml(HTTP_REPORT);
+        var html = getReportsAsHtml(REPORT_MANAGER.reports);
         res.writeHead(200, {"Content-Type": "text/html", "Content-Length": html.length});
         res.write(html);
-    } else if (req.method == "GET" && req.url.match("^/data/main/report-text")) {
-        res.writeHead(200, {"Content-Type": "text/plain", "Content-Length": HTTP_REPORT.text.length});
-        res.write(HTTP_REPORT.text);
-    } else if (req.method == "GET" && req.url.match("^/data/main/")) {
-        var chart = HTTP_REPORT.charts[querystring.unescape(req.url.substring(11))];
-        var json = getChartAsJson(chart);
-        if (json != null) {
-            res.writeHead(200, {"Content-Type": "text/csv", "Content-Length": json.length});
+    } else if (req.method == "GET" && req.url.match("^/data/([^/]+)/([^/]+)")) {
+        var urlparts = req.url.split("/");
+        var retobj = null;
+        var report = REPORT_MANAGER.reports[urlparts[2]];
+        if (report != null) {
+            var chartname = querystring.unescape(urlparts[3]);
+            if (chartname == "summary") {
+                retobj = report.summary;
+            } else if (report.charts[chartname] != null) {
+                retobj = report.charts[chartname].rows;
+            }
+        }
+        if (retobj != null) {
+            var json = JSON.stringify(retobj);
+            res.writeHead(200, {"Content-Type": "application/json", "Content-Length": json.length});
             res.write(json);
         } else {
             res.writeHead(404, {"Content-Type": "text/html", "Content-Length": 0});
@@ -153,6 +137,6 @@ function serveReport(url, req, res) {
     res.end();
 }
 
-// Define global summary report
-if (typeof HTTP_REPORT == "undefined")
-    HTTP_REPORT = new Report("main");
+if (typeof SUMMARY_HTML_REFRESH_PERIOD == "undefined") {
+    SUMMARY_HTML_REFRESH_PERIOD = 2000;
+}

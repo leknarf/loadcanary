@@ -15,7 +15,7 @@ startHttpServer = function(port) {
         
     qputs('Serving progress report on port ' + port + '.');
     HTTP_SERVER = http.createServer(function (req, res) {
-        if (req.url == "/" || req.url.match("^/data/main/")) {
+        if (req.url == "/" || req.url.match("^/data/")) {
             serveReport(req.url, req, res)
         } else if (req.url.match("^/remote")) {
             serveRemote(req.url, req, res);
