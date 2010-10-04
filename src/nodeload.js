@@ -37,33 +37,20 @@ if (options.get('reportInterval'))
 
 require('../dist/nodeloadlib');
 
-TEST_MONITOR.on('update', function(tests) {
-    var stats = tests[0].stats;
-    summary = {
-        ts: new Date(),
-        ttlReqs: stats['result-codes'].lastSummary.cumulative.total,
-        reqs: stats['result-codes'].lastSummary.interval.total,
-        "req/s": stats['result-codes'].lastSummary.interval.rps,
-        min: stats['latency'].lastSummary.interval.min,
-        average: stats['latency'].lastSummary.interval.avg,
-        median: stats['latency'].lastSummary.interval.median,
-        "95%": stats['latency'].lastSummary.interval["95%"],
-        "99%": stats['latency'].lastSummary.interval["99%"],
-        max: stats['latency'].lastSummary.interval.max
-    }
-    qputs(JSON.stringify(summary));
-})
+function pad(str, width) { return str + (new Array(width-str.length)).join(" "); }
+function printItem(name, val, padLength) {
+    if (padLength == undefined) padLength = 40;
+    qputs(pad(name + ":", padLength) + " " + val);
+}
 
 TEST_MONITOR.on('start', function(tests) { testStart = new Date(); });
+TEST_MONITOR.on('update', function(tests) {
+    qputs(pad('Completed ' +tests[0].stats['result-codes'].lastSummary.cumulative.total+ ' requests', 40));
+});
 TEST_MONITOR.on('end', function(tests) {
 
     var stats = tests[0].stats;
     var elapsedSeconds = ((new Date()) - testStart)/1000;
-    pad = function (str, width) { return str + (new Array(width-str.length)).join(" "); }
-    printItem = function(name, val, padLength) {
-        if (padLength == undefined) padLength = 40;
-        qputs(pad(name + ":", padLength) + " " + val);
-    }
 
     qputs('');
     printItem('Server', options.get('host') + ":" + options.get('port'));
