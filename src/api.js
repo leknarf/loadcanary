@@ -233,8 +233,3 @@ function checkToExitProcess() {
         }
     }, 3000);
 }
-
-// Initialize test configuration parameters (logging interval, etc) 
-if (typeof MONITOR_INTERVAL != "undefined") {
-    TEST_MONITOR.interval = MONITOR_INTERVAL;
-}

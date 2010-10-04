@@ -14,3 +14,4 @@ templates:
 compile: templates
 	mkdir -p ./dist
 	cat $(SOURCES) | ./deps/jsmin.js > ./dist/nodeloadlib.js
+	cp src/options.js src/nodeload.js dist/

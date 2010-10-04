@@ -23,8 +23,8 @@ Try the following:
 
 	[~/code/nodeload] node examples/test-server.js &
 	[1] 2756
-	[~/code/nodeload] Server running at http://127.0.0.1:8000/
-	[~/code/nodeload] ./dist/nodeload.js -f -c 10 -n 10000 -i 1 -r ./examples/test-generator.js localhost:8000
+	[~/code/nodeload] Server running at http://127.0.0.1:8080/
+	[~/code/nodeload] ./dist/nodeload.js -f -c 10 -n 10000 -i 1 -r ../examples/test-generator.js localhost:8080
 
 You should now see some test output in your console.  The generated webpage contains a graphical chart of test results.
 

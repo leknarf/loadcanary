@@ -29,7 +29,6 @@ function testsComplete(callback,stayAliveAfterDone){return function(){TEST_MONIT
 callback();if(SLAVE_CONFIG==null&&!stayAliveAfterDone)
 checkToExitProcess();}}
 function checkToExitProcess(){setTimeout(function(){if(!SCHEDULER.running){qputs("\nFinishing...");closeAllLogs();stopHttpServer();setTimeout(process.exit,500);}},3000);}
-if(typeof MONITOR_INTERVAL!="undefined"){TEST_MONITOR.interval=MONITOR_INTERVAL;}
 ConditionalLoop=function(fun,args,conditions,delay){this.fun=fun;this.args=args;this.conditions=(conditions==null)?[]:conditions;this.delay=delay;this.stopped=true;this.callback=null;}
 ConditionalLoop.prototype={checkConditions:function(){if(this.stopped){return false;}
 for(var i=0;i<this.conditions.length;i++){if(!this.conditions[i]()){return false;}}
@@ -50,7 +49,7 @@ monitorLatenciesLoop=function(latencies,fun){var start=function(){return new Dat
 var finish=function(result,start){latencies.put(new Date()-start)};return loopWrapper(fun,start,finish);}
 monitorResultsLoop=function(results,fun){var finish=function(http){results.put(http.res.statusCode)};return loopWrapper(fun,null,finish);}
 monitorByteReceivedLoop=function(bytesReceived,fun){var finish=function(http){http.res.on('data',function(chunk){bytesReceived.put(chunk.length);});};return loopWrapper(fun,null,finish);}
-monitorByteSentLoop=function(bytesSent,fun){var finish=function(http){if(http.req.headers['content-length']){bytesSent.put(http.req.headers['content-length']);}};return loopWrapper(fun,null,finish);}
+monitorByteSentLoop=function(bytesSent,fun){var finish=function(http){if(http.req.headers&&http.req.headers['content-length']){bytesSent.put(http.req.headers['content-length']);}};return loopWrapper(fun,null,finish);}
 monitorConcurrencyLoop=function(concurrency,fun){var c=0;var start=function(){c++;};var finish=function(){concurrency.put(c--)};return loopWrapper(fun,start,finish);}
 monitorRateLoop=function(rate,fun){var finish=function(){rate.put()};return loopWrapper(fun,null,finish);}
 monitorHttpFailuresLoop=function(successCodes,fun,log){if(log==null)
@@ -80,7 +79,7 @@ duration+=this.delay;conditions.push(timeLimit(duration));}
 if(this.argGenerator!=null){this.args=this.argGenerator();}
 this.callback=callback;this.loop=new ConditionalLoop(fun,this.args,conditions,this.delay);this.loop.start(function(){job.done=true;if(job.callback!=null){job.callback();}});this.started=true;},stop:function(){if(this.loop!=null){this.loop.stop();}},clone:function(){var job=this;var other=new Job({fun:job.fun,args:job.args,argGenerator:job.argGenerator,rps:job.rps,duration:job.duration,numberOfTimes:job.numberOfTimes,delay:job.delay,monitored:job.monitored});return other;},}
 if(typeof SCHEDULER=="undefined")
-SCHEDULER=new Scheduler();sys.inherits(TestMonitor,events.EventEmitter);function TestMonitor(){events.EventEmitter.call(this);this.interval=2000;this.tests=[];}
+SCHEDULER=new Scheduler();sys.inherits(TestMonitor,events.EventEmitter);function TestMonitor(){events.EventEmitter.call(this);this.tests=[];this.interval=2000;if(typeof MONITOR_INTERVAL!="undefined"){this.interval=MONITOR_INTERVAL;}}
 TestMonitor.prototype.addTest=function(test){this.tests.push(test);this.emit('test',test);}
 TestMonitor.prototype.start=function(){this.emit('start',this.tests);monitor=this;SCHEDULER.schedule({fun:funLoop(function(){monitor.update()}),rps:1000/this.interval,delay:this.interval/1000,monitored:false});}
 TestMonitor.prototype.update=function(){this.emit('beforeUpdate',this.tests);this.emit('update',this.tests);}

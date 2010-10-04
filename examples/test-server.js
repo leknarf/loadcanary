@@ -8,5 +8,5 @@ http.createServer(function (req, res) {
     res.write(delay+'\n');
     res.end();
   }, delay);
-}).listen(8000);
-sys.puts('Server running at http://127.0.0.1:8000/');
+}).listen(8080);
+sys.puts('Server running at http://127.0.0.1:8080/');

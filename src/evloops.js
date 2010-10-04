@@ -197,7 +197,7 @@ monitorByteReceivedLoop = function(bytesReceived, fun) {
     response body and writes its size to bytesSent, which is generally a stats.js#Accumlator object. */
 monitorByteSentLoop = function(bytesSent, fun) {
     var finish = function(http) {
-        if (http.req.headers['content-length']) {
+        if (http.req.headers && http.req.headers['content-length']) {
             bytesSent.put(http.req.headers['content-length']);
         }
     };

@@ -5,8 +5,11 @@
 sys.inherits(TestMonitor, events.EventEmitter);
 function TestMonitor() {
     events.EventEmitter.call(this);
-    this.interval = 2000;
     this.tests = [];
+    this.interval = 2000;
+    if (typeof MONITOR_INTERVAL != "undefined") {
+        this.interval = MONITOR_INTERVAL;
+    }
 }
 TestMonitor.prototype.addTest = function(test) {
     this.tests.push(test);
