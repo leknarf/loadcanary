@@ -42,7 +42,7 @@ var testConfig = {
     targetRps: Infinity,
     path: '/',
     requestGenerator: null,
-    reportInterval: 10
+    reportInterval: 10,
 };
 var switches = [
     [ '-n', '--number NUMBER', 'Number of requests to make. Defaults to value of --concurrency unless a time limit is specified.' ],
@@ -75,8 +75,7 @@ parser.on(2, function (value) {
 });
 
 parser.on(
-    "quiet",
-    function() {
+    "quiet", function() {
         testConfig.quiet = true;
     }
 );

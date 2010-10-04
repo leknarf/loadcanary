@@ -30,29 +30,28 @@ options.process();
 
 if (!options.get('url'))
     options.help();
-if (options.get('quiet'))
-    QUIET = true;
 if (options.get('reportInterval'))
     MONITOR_INTERVAL = options.get('reportInterval') * 1000;
-
+QUIET = true;
 require('../dist/nodeloadlib');
 
+function puts(text) { if (!options.get('quiet')) console.log(text) }
 function pad(str, width) { return str + (new Array(width-str.length)).join(" "); }
 function printItem(name, val, padLength) {
     if (padLength == undefined) padLength = 40;
-    qputs(pad(name + ":", padLength) + " " + val);
+    puts(pad(name + ":", padLength) + " " + val);
 }
 
 TEST_MONITOR.on('start', function(tests) { testStart = new Date(); });
 TEST_MONITOR.on('update', function(tests) {
-    qputs(pad('Completed ' +tests[0].stats['result-codes'].lastSummary.cumulative.total+ ' requests', 40));
+    puts(pad('Completed ' +tests[0].stats['result-codes'].lastSummary.cumulative.total+ ' requests', 40));
 });
 TEST_MONITOR.on('end', function(tests) {
 
     var stats = tests[0].stats;
     var elapsedSeconds = ((new Date()) - testStart)/1000;
 
-    qputs('');
+    puts('');
     printItem('Server', options.get('host') + ":" + options.get('port'));
 
     if (options.get('requestGeneratorModule') == null) {
@@ -70,7 +69,7 @@ TEST_MONITOR.on('end', function(tests) {
     printItem('Mean time per request (ms)', stats['latency'].cumulative.mean().toFixed(2));
     printItem('Time per request standard deviation', stats['latency'].cumulative.stddev().toFixed(2));
     
-    qputs('\nPercentages of requests served within a certain time (ms)');
+    puts('\nPercentages of requests served within a certain time (ms)');
     printItem("  Min", stats['latency'].cumulative.min, 6);
     printItem("  Avg", stats['latency'].cumulative.mean().toFixed(1), 6);
     printItem("  50%", stats['latency'].cumulative.percentile(.5), 6)
