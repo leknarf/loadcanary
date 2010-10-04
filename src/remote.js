@@ -230,9 +230,8 @@ RemoteWorkerPool.prototype = {
         clearInterval(this.pingId);
         this.callback = null;
         this.slaves = {};
-
-        TEST_MONITOR.stop();
         SCHEDULER.stopAll();
+        
         if (callback != null) {
             callback();
         }

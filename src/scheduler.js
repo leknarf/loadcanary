@@ -84,13 +84,14 @@ Scheduler.prototype = {
         the user defined callback function. */
     checkFinished: function() {
         var foundMonitoredJob = false;
+        var foundRunningJob = false;
         for (var i in this.jobs) {
-            foundMonitoredJob = foundMonitoredJob || this.jobs[i].monitored
-            if (this.jobs[i].monitored && this.jobs[i].started && !this.jobs[i].done) {
+            foundMonitoredJob = foundMonitoredJob || this.jobs[i].monitored;
+            foundRunningJob = foundRunningJob || (this.jobs[i].started && !this.jobs[i].done);
+            if (this.jobs[i].monitored && this.jobs[i].started && !this.jobs[i].done)
                 return false;
-            }
         }
-        if (!foundMonitoredJob) 
+        if (!foundMonitoredJob && foundRunningJob)
             return false;
 
         this.running = false;
