@@ -1,13 +1,9 @@
 - Real build system
 - Proper node.js packaging with npm
-- Make it a proper module with exports
+- Clean up declarations and make nodeloadlib a proper module with exports
 - Use git submodules
 - Console webpage (stats)
 - Console webpage (node manager)
-- Report charts should be id'd with (test name, title) so we can list / filter by test name. Or use report per test.
-- Unravel the mess of how progress reports are called. How are charts added to main report, what flexibility does user have, and can they use reporting independently? can they hook up custom reports to http server?. 
-- Make Report.text a real object that holds key/value data
-- Update non-chart stats in real time (at least provide the non-calculation intensive stats)
 - Fix nodeload.js (build it with nodeloadlib)
-- update nodeloadlib.md
 - Unit testing with a framework
+- Write a DEVELOPERS doc that explains the components

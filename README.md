@@ -1,82 +1,69 @@
-NAME
-----
+NODELOAD
+================
 
-    nodeload - Load test tool for HTTP APIs.  Generates result charts and has hooks for generating requests.
+`nodeload` is both a **standalone tool** and a **`node.js` library** for load testing HTTP services.
 
-SYNOPSIS
---------
+See [NODELOADLIB.md](http://github.com/benschmaus/nodeload/blob/master/NODELOADLIB.md) for using `nodeload` as a `node.js` library.
 
-    nodeload.js [options] <host>:<port>[<path>]
+See [NODELOAD.md](http://github.com/benschmaus/nodeload/blob/master/NODELOAD.md) for instructions on using the standalone load test tool.
 
-DESCRIPTION
------------
 
-    nodeload is for generating lots of requests to send to an HTTP API. It is
-    inspired by Apache's ab benchmark tool and is designed to let programmers
-    develop load tests and get informative reports without having to learn a
-    big and complicated framework.. 
 
-OPTIONS
--------
+NODELOAD QUICKSTART
+================
 
-    -n, --number NUMBER              Number of requests to make. Defaults to
-                                     value of --concurrency unless a time limit
-                                     is specified.
-    -c, --concurrency NUMBER         Concurrent number of connections. Defaults to 1.
-    -t, --time-limit NUMBER          Number of seconds to spend running test. No timelimit by default.
-    -e, --request-rate NUMBER        Target number of requests per seconds. Infinite by default
-    -m, --method STRING              HTTP method to use.
-    -d, --data STRING                Data to send along with PUT or POST request.
-    -f, --flot-chart                 If set, generate an HTML page with a Flot chart of results.
-    -r, --request-generator STRING   Path to module that exports getRequest function
-    -i, --report-interval NUMBER     Frequency in seconds to report statistics
-    -q, --quiet                      Supress display of progress count info.
-    -u, --usage                      Show usage info
+1. Install node.js.
+2. Clone nodeload.
+3. cd into nodeload working copy.
+4. git submodule update --init
+5. Start testing!
 
-ENVIRONMENT
------------
+nodeload contains a toy server that you can use for a quick demo.
+Try the following:
 
-    nodeload requires node to be installed somewhere on your path.
+	[~/code/nodeload] node examples/test-server.js &
+	[1] 2756
+	[~/code/nodeload] Server running at http://127.0.0.1:8000/
+	[~/code/nodeload] ./dist/nodeload.js -f -c 10 -n 10000 -i 1 -r ./examples/test-generator.js localhost:8000
 
-    To get a known working combination of nodeload + node grab a release
-    download or checkout a release tag.
+You should now see some test output in your console.  The generated webpage contains a graphical chart of test results.
 
-    To find a version of node that's compatible with a tag release do
-    git show <tagname>.
 
-    For example: git show v0.1.1
 
-QUICKSTART
-----------
-    1. Install node.js.
-    2. Clone nodeload.
-    3. cd into nodeload working copy.
-    4. git submodule update --init
-    5. Start testing!
+NODELOADLIB QUICKSTART
+================
 
-    nodeload contains a toy server that you can use for a quick demo.
-    Try the following:
+Add `require('./dist/nodeloadlib')` and call `runTest()` or `addTest()/startTests()`:
 
-    [~/code/nodeload] node examples/test-server.js &
-    [1] 2756
-    [~/code/nodeload] Server running at http://127.0.0.1:8000/
-    [~/code/nodeload] ./nodeload.js -f -c 10 -n 10000 -i 1 -r ./examples/test-generator.js localhost:8000
+    // Add to example.js:
+    require('./dist/nodeloadlib');
 
-    You should now see some test output in your console.  The generated HTML
-    report contains a graphical chart of test results.
+    runTest({
+        name: "Read",
+        host: 'localhost',
+        port: 8080,
+        numClients: 20,
+        timeLimit: 600,
+        successCodes: [200],
+        targetRps: 200,
+        requestGenerator: function(client) {
+            var url = '/data/object-' + Math.floor(Math.random()*10000);
+            return traceableRequest(client, 'GET', url, { 'host': 'localhost' });
+        }
+    });
+    
+This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
 
-AUTHORS
--------
+    $ node examples/nodeloadlib-ex2.js         ## while running, browse to http://localhost:8000 to track the test
+    Opening log files.
+    Serving progress report on port 8000.
+    Test server on localhost:9000.
+    ......done.
 
-    Benjamin Schmaus <benjamin.schmaus@gmail.com>
-    Jonathan Lee <jonjlee@gmail.com>
+    Finishing...
+    Closed log files.
+    Shutdown report server.
 
-THANKS
-------
+Browse to http://localhost:8000 during the test for graphs. Non-200 responses are logged to `results-{timestamp}-err.log`, `results-{timestamp}-stats.log` contains statistics, and the summary web page is written to `results-{timestamp}-summary.html`.
 
-Thanks to Orlando Vazquez <ovazquez@gmail.com> for the original proof of concept app.
-
-SEE ALSO
---------
-
-`ab(1)`, [NODELOADLIB.md](http://github.com/benschmaus/nodeload/blob/master/NODELOADLIB.md)
+Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a example of a full read+write test.

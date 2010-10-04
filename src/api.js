@@ -235,6 +235,6 @@ function checkToExitProcess() {
 }
 
 // Initialize test configuration parameters (logging interval, etc) 
-if (typeof REPORT_INTERVAL != "undefined") {
-    TEST_MONITOR.interval = REPORT_INTERVAL;
+if (typeof MONITOR_INTERVAL != "undefined") {
+    TEST_MONITOR.interval = MONITOR_INTERVAL;
 }

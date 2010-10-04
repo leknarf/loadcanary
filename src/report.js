@@ -15,9 +15,6 @@ Report.prototype = {
             this.charts[name] = new Chart(name);
         return this.charts[name];
     },
-    removeChart: function(name) {
-        delete this.charts[name];
-    },
     update: function() {
         if (this.updater != null) { this.updater(this); }
     }
@@ -43,14 +40,6 @@ Chart.prototype = {
         }
         this.rows.push(row);
     }
-}
-
-addReportStat = function(stat) {
-    summaryStats.push([stat])
-}
-
-enableReportSummaryOnProgress = function(enabled) {
-    progressSummaryEnabled = enabled;
 }
 
 writeHtmlSummary = function() {

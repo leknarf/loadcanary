@@ -13,7 +13,7 @@ TestMonitor.prototype.addTest = function(test) {
     this.emit('test', test);
 }
 TestMonitor.prototype.start = function() {
-    this.emit('start');
+    this.emit('start', this.tests);
     monitor = this;
     SCHEDULER.schedule({
         fun: funLoop(function() { monitor.update() }),
@@ -23,16 +23,17 @@ TestMonitor.prototype.start = function() {
     });
 }
 TestMonitor.prototype.update = function() {
-    this.emit('beforeUpdate');
-    this.emit('update');
+    this.emit('beforeUpdate', this.tests);
+    this.emit('update', this.tests);
 }
 TestMonitor.prototype.stop = function() {
-    this.emit('update');
-    this.emit('end');
+    this.emit('update', this.tests);
+    this.emit('end', this.tests);
+    this.tests = [];
 }
 
 /** The global test monitor. Register functions here that should be run at regular intervals during
     the load test, such as processing & logging statistics. */
-var TEST_MONITOR = new TestMonitor();
+TEST_MONITOR = new TestMonitor();
 TEST_MONITOR.on('update', function() { qprint('.') });
 TEST_MONITOR.on('end', function() { qprint('done.') });

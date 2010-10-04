@@ -4,12 +4,13 @@ OVERVIEW
 `nodeloadlib` is a [node.js](http://nodejs.org/) library containing building blocks to programmatically create load tests for HTTP services.  The components are:
 
 * High-level load testing interface
+* Test monitoring
 * Distributed testing
 * A scheduler which executes functions at a given rate
 * Event-based loops
 * Statistics classes
 * HTTP-specific monitors
-* Web-based reports
+* Web-based reporting
 
 QUICKSTART
 ================
@@ -33,16 +34,19 @@ Add `require('./dist/nodeloadlib')` and call `runTest()` or `addTest()/startTest
         }
     });
     
-This test will hit localhost:8080 with 20 concurrent connections for 10 minutes. During the test, a web server is started on localhost:8000, which displays requests per second and latency statistics. Non-200 responses will be logged to `results-{timestamp}-err.log`, statistics are regularly logged to `results-{timestamp}-stats.log`, and the summary page found at localhost:8000 is also written to `results-{timestamp}-summary.html`.
+This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
 
-    $ node example.js         ## while running, browse to http://localhost:8000 to track the test
-    Serving progress report on port 8000.
+    $ node examples/nodeloadlib-ex2.js         ## while running, browse to http://localhost:8000 to track the test
     Opening log files.
+    Serving progress report on port 8000.
+    Test server on localhost:9000.
     ......done.
 
     Finishing...
     Closed log files.
     Shutdown report server.
+
+Browse to http://localhost:8000 during the test for graphs. Non-200 responses are logged to `results-{timestamp}-err.log`, `results-{timestamp}-stats.log` contains statistics, and the summary web page is written to `results-{timestamp}-summary.html`.
 
 Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a example of a full read+write test.
 
@@ -160,10 +164,6 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
                                                 // only shows up in summary report and requests must be made with traceableRequest().
                                                 // Not doing so will result in reporting only 2 uniques.
         latencyConf: {percentiles: [.95,.99]},  // Set latencyConf.percentiles to percentiles to report for the 'latency' stat
-        reportInterval: 2,                      // Seconds between each progress report
-        reportFun: null,                        // Function called each reportInterval that takes a param, stats, which is a map of
-                                                // { 'latency': Reportable(Histogram), 'result-codes': Reportable(ResultsCounter},
-                                                // 'uniques': Reportable(Uniques), 'concurrency': Reportable(Peak) }
     }
     
 **Ramp Definition:** The following object defines the parameters and defaults for a ramp, which is used by `addRamp()`:
@@ -179,9 +179,33 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
 
 
 
+## Test Monitoring ##
+
+`TEST_MONITOR` is an EventEmitter that emits 'update' events at regular intervals. This allows tests to be introspected for things like statistics gathering, report generation, etc. See `monitor.js`
+
+To set the interval for emitting 'update' events, define:
+
+* **MONITOR_INTERVAL**: seconds between emitting `TEST_MONITOR` 'update' events.
+
+**Events:**
+
+* `TEST_MONITOR.on('test', callback(test))`: `addTest()` was called. The newly created test is passed to `callback`.
+* `TEST_MONITOR.on('start', callback(tests))`: `startTests()` was called. The list of tests being started is passed to `callback`.
+* `TEST_MONITOR.on('end', callback(tests))`: All tests finished.
+* `TEST_MONITOR.on('beforeUpdate', callback(tests))`: Emitted before the 'update' event. 
+* `TEST_MONITOR.on('update', callback(tests))`: Emitted at regular intervals while tests are running. Default is every 2 seconds. Define `MONITOR_INTERVAL` before requiring nodeloadlib to change the interval.
+
+**Usage**:
+
+    TEST_MONITOR.on('update', function(tests) { 
+        for (var i in tests) {
+            console.log(JSON.stringify(tests[i].stats['latency'].summary()))
+        }
+    });
+
 ## Distributed Testing ##
 
-Functions to distributing tests across multiple slave `nodeload` instances. See `remote.js`
+Functions to distribute tests across multiple slave `nodeload` instances. See `remote.js`
 
 **Functions:**
 
@@ -191,11 +215,11 @@ Functions to distributing tests across multiple slave `nodeload` instances. See 
 
 **Usage**:
 
-First, simply start `nodeloadlib.js` on each slave instances.
+First, start `nodeloadlib.js` on each slave instances.
 
     $ node dist/nodeloadlib.js       # Run on each slave machine
 
-Then, create tests in using `remoteTest(spec)` with the same `spec` fields in the **Test Definition** section above. Pass the created tests as a list to `remoteStart(...)` to execute them on slave `nodeload` instances. `master` must be the `"host:port"` of the `nodeload` which is executing `remoteStart(...)`. It will receive and aggregates statistics from the slaves, so the address should be reachable by the slaves. Or, use `master=null` to disable reports from the slaves.
+Then, create tests using `remoteTest(spec)` with the same `spec` fields in the **Test Definition** section above. Pass the created tests as a list to `remoteStart(...)` to execute them on slave `nodeload` instances. `master` must be the `"host:port"` of the `nodeload` which runs `remoteStart(...)`. It will receive and aggregate statistics from the slaves, so the address should be reachable by the slaves. Or, use `master=null` to disable reports from the slaves.
 
     // This script must be run on master:8000, which will aggregate results. Each slave 
     // will GET http://internal-service:8080/ at 100 rps.
@@ -208,7 +232,7 @@ Then, create tests in using `remoteTest(spec)` with the same `spec` fields in th
     });
     remoteStart('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], [t1]);
 
-Alternatively, an existing `nodeload` load test script file can be used:
+Alternatively, an existing `nodeload` script file can be used:
 
     // The file /path/to/load-test.js should contain valid javascript and can use any nodeloadlib functions
     remoteStartFile('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], '/path/to/load-test.js');
@@ -219,8 +243,7 @@ When the remote tests complete, the master instance will call the `callback` par
 
 ## Function Scheduler ##
 
-The `SCHEDULER` object allows a function to be called at a desired rate and concurrency level.
-
+The `SCHEDULER` object allows a function to be called at a desired rate and concurrency level. See `scheduler.js`.
 **Functions:**
 
 * `SCHEDULER.schedule(spec)`: Schedule a function to be executed (see the **Schedule Definition** below)
@@ -271,7 +294,7 @@ Example:
 
 ## Event-based loops ##
 
-The `ConditionalLoop` class provides a generic way to write a loop where each iteration is scheduled using `process.nextTick()`. This allows many long running "loops" to be executed concurrently by `node.js`.
+The `ConditionalLoop` class provides a generic way to write a loop where each iteration is scheduled using `process.nextTick()`. This allows many long running "loops" to be executed concurrently by `node.js`. See `evloops.js`.
 
 **Functions:**
 
@@ -314,7 +337,7 @@ The `ConditionalLoop` constructor arguments are:
 
 ## Statistics ##
 
-Implementations of various statistics.
+Implementations of various statistics. See `stats.js`.
 
 **Classes:**
 
@@ -354,12 +377,13 @@ In addition, these other methods are supported:
 * `LogFile.close()`: Close the file.
 * `Reportable.next()`: clear out the interval statistic for the next window.
 
-Refer to the `Statistics` section near line 910 of [nodeloadlib.js](http://github.com/benschmaus/nodeload/tree/master/dist/nodeloadlib.js) for the return value of the `get()` and `summary()` functions for the different classes.
+Refer to the `stats.js` for the return value of the `get()` and `summary()` functions for the different classes.
+
 
 
 ## HTTP-specific Monitors ##
 
-A collection of wrappers for `requestLoop` functions that record statistics for HTTP requests. These functions can be run scheduled with `SCHEDULER` or run with a `ConditionalLoop`.
+A collection of wrappers for `requestLoop` functions that record statistics for HTTP requests. These functions can be run scheduled with `SCHEDULER` or run with a `ConditionalLoop`. See `evloops.js`.
 
 **Functions:**
 
@@ -401,25 +425,32 @@ Example:
 
 ## Web-based Reports ##
 
-Functions for manipulating the report that is available during the test at http://localhost:8000/ and that is written to `results-{timestamp}-summary.html`.  Note that the directory `flot/` must be present for the charts to display properly.
+Functions for manipulating the report that is available during the test at http://localhost:8000/ and that is written to `results-{timestamp}-summary.html`.
 
-**Functions:**
+**Interface:**
 
-* `HTTP_REPORT.setText(text)`: Sets the text at the top of the report.
-* `HTTP_REPORT.puts(text)`: Appends the line `text` to the text at the top of the report.
-* `HTTP_REPORT.addChart(name)`: Adds a chart with the title `name` to the report and returns a `Chart` object. See `Chart.put(data)` below.
-* `HTTP_REPORT.removeChart(name)`: Removes the chart with title `name` from the report.
-* `HTTP_REPORT.clear()`: Clears the text and removes all charts from the report.
+* `REPORT_MANAGER.reports`: All of the reports that are displayed in the summary webpage.
+* `REPORT_MANAGER.addReport(Report)`: Add a report object to the webpage.
+* `Report(name, updater(Report))`: A report consists of a set of charts, displayed in the main body of the webpage, and a summary object displayed on the right side bar. A report has a name and an updater function. Calling `updater(Report)` should  update the report's chart and summary. When tests are running, REPORT_MANAGER calls each report's `updater` periodically.
+* `Report.summary`: A JSON object displayed in table form in the summary webpage right side bar. 
+* `Report.getChart(name)`: Gets or creates a chart with the title `name` to the report and returns a `Chart` object. See `Chart.put(data)` below.
 * `Chart.put(data)`: Add the data, which is a map of { 'trend-1': value, 'trend-2': value, ... }, to the chart, which tracks the values for each trend over time.
-* `SUMMARY_HTML_REFRESH_PERIOD`: Change this global variable to set the auto-refresh period of the HTML page in milliseconds.
+* `SUMMARY_HTML_REFRESH_PERIOD`: Change this global variable to set the auto-refresh period of the webpage in milliseconds.
 
 **Usage:**
 
 An HTTP server is started on port `HTTP_SERVER_PORT`, which defaults to 8000, unless `DISABLE_HTTP_SERVER=true` when `nodeloadlib` is included. Likewise, the file `results-{timestamp}-summary.html` is written to the current directory when the test ends unless `DISABLE_LOGS=true` when `nodeloadlib` is included.
 
-A chart is automatically added to `HTTP_REPORT` for each statistic requested in a test created by `addTest()` or `runTest()`, and for each `Reportable` object created with parameter `addToHttpReport=true`. Call `HTTP_REPORT.addChart()` to add additional charts to the report. Add data points to it manually by calling `put()` on the returned object.
+A report is automatically added for each test created by `addTest()` or `runTest()`. To add additional charts to the summary webpage:
 
-The progress page automatically issues an AJAX request to refresh the text and chart data every `SUMMARY_HTML_REFRESH_PERIOD` milliseconds.
+    var mycounter = 0;
+    REPORT_MANAGER.addReport(new Report("My Report", function(report) {
+        chart = report.getChart("My Chart");
+        chart.put({ 'counter': mycounter++ });
+        chart.summary = { 'Total increments': mycounter };
+    }));
+
+The webpage automatically issues an AJAX request to refresh the text and chart data every `SUMMARY_HTML_REFRESH_PERIOD` milliseconds.
 
 
 
@@ -437,7 +468,7 @@ Some handy features worth mentioning.
           'uniques': Reportable(Uniques), 
           'concurrency': Reportable(Peak) }
      
-    Put `Reportable` instances to this map to have it automatically updated each reporting interval. Create the `Reportable` with `addToHttpReport=true` to add a chart for it on the HTML status page. Or, set `Report.disableIntervalReporting=true` to only update `Reportable.cumulative` and not `Reportable.interval` each reporting interval.
+    Put `Reportable` instances to this map to have it automatically updated each reporting interval and added to the summary webpage.
 
 2. **Post-process statistics:**
 
