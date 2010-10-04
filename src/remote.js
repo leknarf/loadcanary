@@ -13,10 +13,6 @@
 // 5. The master aggregates these statistics and generates reports just like a regular, non-distributed nodeloadlib instance
 //
 
-var SLAVE_CONFIG = null;
-var WORKER_POOL = null;
-var SLAVE_PING_PERIOD = 3000;
-
 /** Returns a test that can be scheduled with `remoteStart(spec)` (See TEST_DEFAULTS in api.ja for a list
     of the configuration values that can be provided in the test specification */
 remoteTest = function(spec) {
@@ -48,7 +44,7 @@ remoteStart = function(master, slaves, tests, callback, stayAliveAfterDone) {
 remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDone) {
     fs.readFile(filename, function (err, data) {
         if (err != null) throw err;
-        data = data.replace(/^#![^\n]+\n/, '// removed shebang directive from runnable script\n');
+        data = data.toString().replace(/^#![^\n]+\n/, '// removed shebang directive from runnable script\n');
         remoteSubmit(master, slaves, data, callback, stayAliveAfterDone);
     });
 }
@@ -56,6 +52,10 @@ remoteStartFile = function(master, slaves, filename, callback, stayAliveAfterDon
 // =================
 // Private methods
 // =================
+var SLAVE_CONFIG = null;
+var WORKER_POOL = null;
+var REMOTE_TESTS = {};
+var SLAVE_PING_PERIOD = 3000;
 
 /** Creates a RemoteWorkerPool with the given master and slave and runs the specified code, fun, on 
     every slave node in the pool. fun is a string containing valid Javascript. callback and 
@@ -70,7 +70,47 @@ function remoteSubmit(master, slaves, fun, callback, stayAliveAfterDone) {
     A slave node differ from normal (master) node because it sends statistics to a master node. */
 function registerSlave(id, master) {
     SLAVE_CONFIG = new RemoteSlave(id, master);
-    TEST_MONITOR.on('update', function() { SLAVE_CONFIG.reportProgress() });
+    TEST_MONITOR.on('test', function(test) { SLAVE_CONFIG.addTest(test) });
+    TEST_MONITOR.on('beforeUpdate', function() { SLAVE_CONFIG.reportProgress() });
+    TEST_MONITOR.on('end', function() { SLAVE_CONFIG.clearTests() });
+}
+
+function receiveTestCreate(report) {
+    if (WORKER_POOL.slaves[report.slaveId] == null)
+        return;
+    var localtest = REMOTE_TESTS[report.spec.name];
+    if (localtest == null) {
+        localtest = { spec: report.spec, stats: {}, jobs: [], fun: null }
+        REMOTE_TESTS[report.spec.name] = localtest;
+        TEST_MONITOR.addTest(localtest);
+    }
+}
+
+/** Process data received POSTed by a slave to http://master/remote/progress */
+function receiveTestProgress (report) {
+    if (WORKER_POOL.slaves[report.slaveId] == null)
+        return;
+    WORKER_POOL.slaves[report.slaveId].state = "running";
+
+    // Slave report contains {testname: { stats: { statsname -> stats data }}. See RemoteSlave.reportProgress(); 
+    for (var testname in report.data) {
+        var localtest = REMOTE_TESTS[testname];
+        var remotetest = report.data[testname];
+        if (localtest != null) {
+            for (var s in remotetest.stats) {
+                var remotestat = remotetest.stats[s];
+                var localstat = localtest.stats[s];
+                if (localstat == null) {
+                    var backend = statsClassFromString(remotestat.interval.type);
+                    localstat = new Reportable([backend, remotestat.interval.params], remotestat.name, remotestat.trend);
+                    localtest.stats[s] = localstat;
+                }
+                localstat.merge(remotestat.interval);
+            }
+        } else {
+            qputs("WARN: received remote progress report from '" + report.slaveId + "' for unknown test: " + testname);
+        }
+    }
 }
 
 /** A RemoteSlave represents a slave nodeload instance. RemoteSlave.reportProgress() POSTs statistics
@@ -80,16 +120,48 @@ function RemoteSlave(id, master) {
     this.id = id;
     this.masterhost = master[0];
     this.master = http.createClient(master[1], master[0]);
+    this.tests = [];
 }
 RemoteSlave.prototype = {
+    addTest: function(test) {
+        this.tests.push(test);
+        this.sendReport('/remote/newTest', {slaveId: this.id, spec: test.spec});
+    },
+    clearTests: function() {
+        this.tests = [];
+    },
     sendReport: function(url, object) {
         var s = JSON.stringify(object);
         var req = this.master.request('POST', url, {'host': this.masterhost, 'content-length': s.length});
         req.write(s);
         req.end();
     },
-    reportProgress: function(stats) {
-        this.sendReport('/remote/progress', {slaveId: this.id, stats: stats});
+    reportProgress: function() {
+        // Send the master a JSON object containing:
+        // - slaveId: my unique id assigned by the master node,
+        // - report: { 
+        //      "test-name": { 
+        //          stats: {    // mirrors the fields of Reportable
+        //              name: name of stat
+        //              trend: should history of this stat be tracked
+        //              interval: stats data from current interval
+        //          }
+        //      }
+        //   }
+        var reports = {};
+        for (var i in this.tests) {
+            var test = this.tests[i];
+            var stats = {};
+            for (var s in test.stats) {
+                stats[s] = {
+                    name: test.stats[s].name,
+                    trend: test.stats[s].trend,
+                    interval: test.stats[s].interval
+                }
+            }
+            reports[test.spec.name] = { stats: stats };
+        }
+        this.sendReport('/remote/progress', {slaveId: this.id, data: reports});
     },
 }
 /** Represents a pool of nodeload instances with one master and multiple slaves. master and each slave 
@@ -102,7 +174,6 @@ function RemoteWorkerPool(master, slaves) {
     this.callback = null;
     this.pingId = null;
     this.progressId = null;
-    this.stats = {};
 
     for (var i in slaves) {
         var slave = slaves[i].split(":");
@@ -139,7 +210,9 @@ RemoteWorkerPool.prototype = {
         var worker = this;
         this.pingId = setInterval(function() { worker.sendPings() }, SLAVE_PING_PERIOD);
         this.callback = testsComplete(callback, stayAliveAfterDone);
-        summaryStats = [this.stats];
+
+        TEST_MONITOR.start();
+        SCHEDULER.startAll();
     },
     /** Called after each round of slave pings to see if all the slaves have finished. A slave is "finished"
         if it reports that it finished successfully, or if it fails to respond to a ping and flagged with
@@ -157,6 +230,9 @@ RemoteWorkerPool.prototype = {
         clearInterval(this.pingId);
         this.callback = null;
         this.slaves = {};
+
+        TEST_MONITOR.stop();
+        SCHEDULER.stopAll();
         if (callback != null) {
             callback();
         }
@@ -196,35 +272,7 @@ RemoteWorkerPool.prototype = {
             }
         }
         this.checkFinished();
-    },
-    /** Every time the master receives a progress report is received from a slave, update the overall 
-        statistics. Since all the slaves will be on the same reporting schedule, we can expect the master
-        to receive progress reports from all slaves at approxmiate the same time. We allow a 500ms window
-        between the first and last report to arrive before updating the master stats. */
-    scheduleProgressReport: function() {
-        if (this.progressId == null) {
-            var worker = this;
-            this.progressId = setTimeout(function() { 
-                defaultProgressReport(worker.stats);
-                worker.progressId = null;
-            }, 500);
-        }
-    },
-    /** Process data received POSTed by a slave to http://master/remote/progress */
-    receiveProgress: function(report) {
-        if (this.slaves[report.slaveId] == null)
-            return;
-        this.slaves[report.slaveId].state = "running";
-        for (var i in report.stats) {
-            var stat = report.stats[i].name;
-            if (this.stats[stat] == null) {
-                var backend = statsClassFromString(report.stats[i].interval.type);
-                this.stats[stat] = new Reportable([backend, report.stats[i].interval.params], stat, report.stats[i].addToHttpReport);
-            }
-            this.stats[stat].merge(report.stats[i].interval);
-        }
-        this.scheduleProgressReport();
-    },
+    }
 }
 
 /** Handler for all the requests to /remote. See http.js#startHttpServer(). */
@@ -255,9 +303,14 @@ function serveRemote(url, req, res) {
         qprint("\nReceived remote stop...");
         SCHEDULER.stopAll();
         sendStatus(200);
+    } else if (req.method == "POST" && url == "/remote/newTest") {
+        readBody(req, function(data) {
+            receiveTestCreate(JSON.parse(data));
+            sendStatus(200);
+        });
     } else if (req.method == "POST" && url == "/remote/progress") {
-        readBody(req, function(report) {
-            WORKER_POOL.receiveProgress(JSON.parse(report));
+        readBody(req, function(data) {
+            receiveTestProgress(JSON.parse(data));
             sendStatus(200);
         });
     } else {

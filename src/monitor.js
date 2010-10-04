@@ -23,6 +23,7 @@ TestMonitor.prototype.start = function() {
     });
 }
 TestMonitor.prototype.update = function() {
+    this.emit('beforeUpdate');
     this.emit('update');
 }
 TestMonitor.prototype.stop = function() {

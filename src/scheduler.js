@@ -83,11 +83,16 @@ Scheduler.prototype = {
     /** Iterate all jobs and see if any are still running. If all jobs are complete, then call
         the user defined callback function. */
     checkFinished: function() {
+        var foundMonitoredJob = false;
         for (var i in this.jobs) {
+            foundMonitoredJob = foundMonitoredJob || this.jobs[i].monitored
             if (this.jobs[i].monitored && this.jobs[i].started && !this.jobs[i].done) {
                 return false;
             }
         }
+        if (!foundMonitoredJob) 
+            return false;
+
         this.running = false;
         this.stopAll();
         this.jobs = [];
