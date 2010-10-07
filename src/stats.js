@@ -2,10 +2,10 @@
 // Statistics
 // ------------------------------------
 //
-// Contains various statistics classes and function. The classes implement the same consistent interface. 
+// Defines various statistics classes and function. The classes implement the same consistent interface. 
 // See NODELOADLIB.md for a complete description of the classes and functions.
 
-Histogram = function(params) {
+var Histogram = exports.Histogram = function(params) {
     // default histogram size of 3000: when tracking latency at ms resolution, this
     // lets us store latencies up to 3 seconds in the main array
     var numBuckets = 3000;
@@ -136,7 +136,7 @@ Histogram.prototype =  {
     }
 }
 
-Accumulator = function() {
+var Accumulator = exports.Accumulator = function() {
     this.type = "Accumulator";
     this.total = 0;
     this.length = 0;
@@ -162,7 +162,7 @@ Accumulator.prototype = {
     }
 }
 
-ResultsCounter = function() {
+var ResultsCounter = exports.ResultsCounter = function() {
     this.type = "ResultsCounter";
     this.start = new Date();
     this.items = {};
@@ -211,7 +211,7 @@ ResultsCounter.prototype = {
     }
 }
 
-Uniques = function() {
+var Uniques = exports.Uniques = function() {
     this.type = "Uniques";
     this.start = new Date();
     this.items = {};
@@ -252,7 +252,7 @@ Uniques.prototype = {
     }
 }
 
-Peak = function() {
+var Peak = exports.Peak = function() {
     this.type = "Peak";
     this.peak = 0;
     this.length = 0;
@@ -281,7 +281,7 @@ Peak.prototype = {
     }
 }
 
-Rate = function() {
+var Rate = exports.Rate = function() {
     type = "Rate";
     this.start = new Date();
     this.length = 0;
@@ -305,26 +305,32 @@ Rate.prototype = {
     }
 }
 
-LogFile = function(filename) {
+var LogFile = exports.LogFile = function(filename) {
     this.type = "LogFile";
+    this.writepos = null;
     this.length = 0;
     this.filename = filename;
     this.open();
 }
 LogFile.prototype = {
     put: function(item) {
-        fs.write(this.fd, item + "\n", null, "ascii");
-        this.length++;
+        var buf = new Buffer(item);
+        fs.write(this.fd, buf, 0, buf.length, this.writepos);
+        this.writepos = null;
+        this.length += item.length;
     },
     get: function(item) {
-        fs.statSync(this.filename, function (err, stats) {
+        fs.statSync(this.filename, function(err, stats) {
             if (err == null) item = stats;
         });
         return item;
     },
-    clear: function() {
-        this.close();
-        this.open();
+    clear: function(text) {
+        logfile = this;
+        this.writepos = 0;
+        fs.truncate(this.fd, 0, function(err) {
+            if (text !== undefined) logfile.put(text);
+        });
     },
     open: function() {
         this.fd = fs.openSync(this.filename, "w");
@@ -338,7 +344,7 @@ LogFile.prototype = {
     }
 }
 
-NullLog = function() { 
+var NullLog = exports.NullLog = function() { 
     this.type = "NullLog";
     this.length = 0;
 }
@@ -351,10 +357,9 @@ NullLog.prototype = {
     summary: function() { return { file: 'null', written: 0 } }
 }
 
-Reportable = function(backend, name, trend) {
+var Reportable = exports.Reportable = function(backend, name, trend) {
     var backendparams = null;
-    if (name == null)
-        name = "";
+    name = name || "";
     if (typeof backend == 'object') {
         backendparams = backend[1];
         backend = backend[0];
@@ -366,6 +371,7 @@ Reportable = function(backend, name, trend) {
     this.interval = new backend(backendparams);
     this.cumulative = new backend(backendparams);
     this.trend = trend;
+    this.lastSummary = null;
 }
 Reportable.prototype = {
     put: function(stat) {
@@ -374,6 +380,7 @@ Reportable.prototype = {
         }
         this.cumulative.put(stat);
         this.length++;
+        this.lastSummary = null;
     },
     get: function() { 
         return null; 
@@ -383,12 +390,13 @@ Reportable.prototype = {
         this.cumulative.clear();
     }, 
     next: function() {
-        this.lastSummary = this.summary();
         if (this.interval.length > 0) {
             this.interval.clear();
         }
+        this.lastSummary = null;
     },
     summary: function() {
+        if (this.lastSummary) { return this.lastSummary }
         return { interval: this.interval.summary(), cumulative: this.cumulative.summary() };
     },
     merge: function(other) {
@@ -398,7 +406,7 @@ Reportable.prototype = {
     }
 }
 
-roundRobin = function(list) {
+var roundRobin = exports.roundRobin = function(list) {
     r = list.slice();
     r.rridx = -1;
     r.get = function() {
@@ -408,7 +416,7 @@ roundRobin = function(list) {
     return r;
 }
 
-randomString = function(length) {
+var randomString = exports.randomString = function(length) {
     var s = "";
     for (var i = 0; i < length; i++) {
         s += '\\' + (Math.floor(Math.random() * 95) + 32).toString(8); // ascii chars between 32 and 126
@@ -416,7 +424,7 @@ randomString = function(length) {
     return eval("'" + s + "'");
 }
 
-nextGaussian = function(mean, stddev) {
+var nextGaussian = exports.nextGaussian = function(mean, stddev) {
     if (mean == null) mean = 0;
     if (stddev == null) stddev = 1;
     var s = 0, z0, z1;
@@ -428,7 +436,7 @@ nextGaussian = function(mean, stddev) {
     return z0 * Math.sqrt(-2 * Math.log(s) / s) * stddev + mean;
 }
 
-nextPareto = function(min, max, shape) {
+var nextPareto = exports.nextPareto = function(min, max, shape) {
     if (shape == null) shape = 0.1;
     var l = 1, h = Math.pow(1+max-min, shape), rnd = Math.random();
     while (rnd == 0) rnd = Math.random();

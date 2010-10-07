@@ -1,9 +1,11 @@
 - Real build system
 - Proper node.js packaging with npm
-- Clean up declarations and make nodeloadlib a proper module with exports
+- Fix remote.js: 
+    - MASTER/SLAVE controllers (handle tests) + RemoteWorkerPool/RemoteWorker (pings)
+    - multiple TEST_MONITOR.on('...') on slaves across tests 
+    - master can't handle multiple test runs
 - Use git submodules
 - Console webpage (stats)
 - Console webpage (node manager)
-- Fix nodeload.js (build it with nodeloadlib)
 - Unit testing with a framework
 - Write a DEVELOPERS doc that explains the components

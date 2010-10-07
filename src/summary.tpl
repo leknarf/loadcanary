@@ -75,7 +75,7 @@ REPORT_SUMMARY_TEMPLATE
                         }
                     }
                     http<%=rid%>.send(null);
-                }, <%=SUMMARY_HTML_REFRESH_PERIOD%>);
+                }, <%=refreshPeriodMs%>);
 
                 <% for (var j in reports[i].charts) { %>
                 <% var chart = reports[i].charts[j]; %>
@@ -92,7 +92,7 @@ REPORT_SUMMARY_TEMPLATE
                             http<%=id%>.open("GET", "/data/<%=querystring.escape(reports[i].name)%>/<%=querystring.escape(chart.name)%>");
                             http<%=id%>.onreadystatechange=function() { if(http<%=id%>.readyState == 4) { graph<%=id%>.updateOptions({"file": JSON.parse(http<%=id%>.responseText)});}};
                             http<%=id%>.send(null);
-                        }, <%=SUMMARY_HTML_REFRESH_PERIOD%>);
+                        }, <%=refreshPeriodMs%>);
                 <% } %>
             <% } %>
         </script>

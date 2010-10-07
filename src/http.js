@@ -2,74 +2,68 @@
 // HTTP Server
 // ------------------------------------
 //
-// This file defines and starts the nodeload HTTP server. This following global variables may be defined
-// before require()'ing this file to change the server's configuration:
+// This file defines HTTP_SERVER.
 //
-// - DISABLE_HTTP_SERVER [false]: if true, do not start the HTTP server
-// - HTTP_SERVER_PORT [8000]: the port the HTTP server listens on
+// This file defines and starts the nodeload HTTP server.
 // 
 
-startHttpServer = function(port) {
-    if (typeof HTTP_SERVER != "undefined")
-        return;
+/** The global HTTP server. By default, HTTP_SERVER knows how to return static files from the current
+directory. Add new routes to HTTP_SERVER.route_(). */
+var HTTP_SERVER = exports.HTTP_SERVER = {
+    server: null,
+    
+    start: function(port) {
+        if (this.server) { return };
         
-    qputs('Serving progress report on port ' + port + '.');
-    HTTP_SERVER = http.createServer(function (req, res) {
+        var that = this;
+        this.server = http.createServer(function(req, res) { that.route_(req, res) });
+        this.server.listen(port);
+        qputs('Started HTTP server on port ' + port + '.');
+    },
+    stop: function() {
+        if (!this.server) { return };
+        this.server.close();
+        this.server = null;
+        qputs('Shutdown HTTP server.');
+    },
+    route_: function(req, res) {
         if (req.url == "/" || req.url.match("^/data/")) {
             serveReport(req.url, req, res)
         } else if (req.url.match("^/remote")) {
             serveRemote(req.url, req, res);
         } else if (req.method == "GET") {
-            serveFile("." + req.url, res);
+            this.serveFile_("." + req.url, res);
         } else {
             res.writeHead(405, {"Content-Length": "0"});
             res.end();
         }
-    });
-    HTTP_SERVER.listen(port);
-}
-
-stopHttpServer = function() {
-    if (typeof HTTP_SERVER == "undefined")
-        return;
-
-    HTTP_SERVER.close();
-    qputs('Shutdown report server.');
-}
-
-// =================
-// Private methods
-// =================
-
-function serveFile(file, response) {
-    fs.stat(file, function(err, stat) {
-        if (err != null) {
-            response.writeHead(404, {"Content-Type": "text/plain"});
-            response.write("Cannot find file: " + file);
-            response.end();
-            return;
-        }
-        
-        fs.readFile(file, "binary", function (err, data) {
-            if (err == null) {
-                response.writeHead(200, { 'Content-Length': data.length });
-                response.write(data, "binary");
-            } else {
-                response.writeHead(500, {"Content-Type": "text/plain"});
-                response.write("Error opening file " + file + ": " + err);
+    },
+    serveFile_: function(file, response) {
+        fs.stat(file, function(err, stat) {
+            if (err != null) {
+                response.writeHead(404, {"Content-Type": "text/plain"});
+                response.write("Cannot find file: " + file);
+                response.end();
+                return;
             }
-            response.end();
-        });
-    });
-}
 
-// Define and start HTTP server
-if (typeof HTTP_SERVER_PORT == "undefined") {
-    HTTP_SERVER_PORT = 8000;
-    if (process.env['HTTP_SERVER_PORT'] != null) {
-        HTTP_SERVER_PORT = Number(process.env['HTTP_SERVER_PORT']);
+            fs.readFile(file, "binary", function (err, data) {
+                if (err) {
+                    response.writeHead(500, {"Content-Type": "text/plain"});
+                    response.write("Error opening file " + file + ": " + err);
+                } else {
+                    response.writeHead(200, { 'Content-Length': data.length });
+                    response.write(data, "binary");
+                }
+                response.end();
+            });
+        });
     }
 }
-    
-if (typeof DISABLE_HTTP_SERVER == "undefined" || DISABLE_HTTP_SERVER == false)
-    startHttpServer(HTTP_SERVER_PORT);
+
+// Start HTTP server
+NODELOAD_CONFIG.on('apply', function() { 
+    if (NODELOAD_CONFIG.HTTP_ENABLED) {
+        HTTP_SERVER.start(NODELOAD_CONFIG.HTTP_PORT);
+    }
+});

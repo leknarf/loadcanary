@@ -15,52 +15,72 @@ OVERVIEW
 QUICKSTART
 ================
 
-Add `require('./dist/nodeloadlib')` and call `runTest()` or `addTest()/startTests()`:
+* **Write a load test** 
 
-    // Add to example.js:
-    require('./dist/nodeloadlib');
-
-    runTest({
-        name: "Read",
-        host: 'localhost',
-        port: 8080,
-        numClients: 20,
-        timeLimit: 600,
-        successCodes: [200],
-        targetRps: 200,
-        requestGenerator: function(client) {
-            var url = '/data/object-' + Math.floor(Math.random()*10000);
-            return traceableRequest(client, 'GET', url, { 'host': 'localhost' });
-        }
-    });
+        $ vi example.js         ## Add the following text to example.js
     
-This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
+            // This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
+            var http = require('http'),
+                nl = require('./lib/nodeloadlib');
 
-    $ node examples/nodeloadlib-ex2.js         ## while running, browse to http://localhost:8000 to track the test
-    Opening log files.
-    Serving progress report on port 8000.
-    Test server on localhost:9000.
-    ......done.
+            http.createServer(function (req, res) { res.writeHead(200); res.end(); }).listen(8080);
+            console.log("Server to load test listening on 8080.")
 
-    Finishing...
-    Closed log files.
-    Shutdown report server.
+            nl.runTest({
+                host: 'localhost',
+                port: 8080,
+                numClients: 20,
+                timeLimit: 600,
+                successCodes: [200],
+                targetRps: 200,
+                requestLoop: function(loopFun, client) {
+                    var url = '/data/object-' + Math.floor(Math.random()*10000),
+                        req = nl.traceableRequest(client, 'GET', url, { 'host': 'localhost' });
+                    req.on('response', function(res) {
+                        loopFun({req: req, res: res});
+                    });
+                    req.end();
+                }
+            });
 
-Browse to http://localhost:8000 during the test for graphs. Non-200 responses are logged to `results-{timestamp}-err.log`, `results-{timestamp}-stats.log` contains statistics, and the summary web page is written to `results-{timestamp}-summary.html`.
+        $ node example.js       ## while running, browse to http://localhost:8000
+        Listening on 8080.
+        Opening log files.
+        Started HTTP server on port 8000.
+        ......done.
+        Finishing...
+        Shutdown HTTP server.
 
-Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a example of a full read+write test.
+    Browse to http://localhost:8000 during the test for graphs. Non-200 responses are logged to `results-{timestamp}-err.log`, `results-{timestamp}-stats.log` contains statistics, and the summary web page is written to `results-{timestamp}-summary.html`. Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blob/master/examples/nodeloadlib-ex.js) for a example of a full read+write test.
+
+* **Run a function at given rate:**
+
+        // Print 0..19 over 10 seconds
+        var nl = require('./lib/nodeloadlib').disableServer();
+        var i = 0;
+
+        new nl.Job({
+            rps: 2,         // run 2 times/sec
+            duration: 10,   // run for 10 seconds
+            fun: function(loopFun) {
+                console.log(i++);
+                loopFun();
+            }
+        }).start();
 
 
 CONFIGURATION
 ================
 
-Define these global variables before including `nodeloadlib` to control its behavior:
+Use the following functions when calling `require()` to alter nodeload's default behavior:
 
-* **QUIET**: set to true to disable all console output (default is false)
-* **HTTP_SERVER_PORT**: set to the port to start the HTTP server on (default is 8000)
-* **DISABLE_HTTP_SERVER**: set to true to not start the HTTP server (default is false)
-* **DISABLE_LOGS**: set to true to not create the log or HTML summary files (default is false)
-* **TEST_CONFIG**: can be "long" or "short" which changes the test reporting interval to more appropriate settings (default is "short")
+    var nl = require('./lib/nodeloadlib')
+                .quiet()                        // disable all console output
+                .usePort(10000)                 // start HTTP server on port 10000. Default: 8000
+                .disableServer()                // don't start the HTTP server
+                .setMonitorIntervalMs(1000)     // emit 'update' events every second. Default: 2000
+                .setAjaxRefreshIntervalMs(1000) // HTML page should update every second. Default: 2000
+                .disableLogs()                  // don't log anything to disk
 
 
 COMPONENTS
@@ -82,21 +102,21 @@ High-level functions useful for quickly building up complex load tests. See `api
 
 A "test" represents requests being sent at a fixed rate over concurrent connections.  Tests are run by calling `runTest()` or calling `addTest()` followed by `startTests()`.  The parameters defining a test are detailed in **Test Definition** section. Issue requests using one of three methods:
 
-* Define `method`, `path`, and `requestData`, leaving `requestGenerator` and `requestLoop` as `null`.  If `method` is `'PUT'` or `'POST'`, `nodeloadlib` will send `requestData` in the request body.
+* Define `method`, `path`, and `requestData`, leaving `requestGenerator` and `requestLoop` as `null`.
 
 * Set `requestGenerator` to a `function(http.Client) -> http.ClientRequest`.  Requests returned by this function are executed by `nodeloadlib`.  For example, you can GET random URLs using a `requestGenerator`:
 
-        addTest({
+        nl.addTest({
             requestGenerator: function(client) {
-                return traceableRequest(client, 'GET', '/resource-' + Math.floor(Math.random()*10000));
+                return nl.traceableRequest(client, 'GET', '/resource-' + Math.floor(Math.random()*10000));
             }
         });
 
-* Set `requestLoop` to a `function(loopFun, http.Client)` which calls `loopFun({req: http.ClientRequest, res: http.ClientResponse})` after each request completes.  This is the most flexibility, but the function must be sure to call `loopFun()`.  For example, issue `PUT` requests with proper `If-Match` headers using a `requestLoop`:
+* Set `requestLoop` to a `function(loopFun, http.Client)` which calls `loopFun({req: http.ClientRequest, res: http.ClientResponse})` after each request completes.  This is the most flexibile, but the function must be sure to call `loopFun()`.  For example, issue `PUT` requests with proper `If-Match` headers using a `requestLoop`:
 
-        addTest({
+        nl.addTest({
             requestLoop: function(loopFun, client) {
-                var req = traceableRequest(client, 'GET', '/resource');
+                var req = nl.traceableRequest(client, 'GET', '/resource');
                 req.on('response', function(response) {
                     if (response.statusCode != 200 && response.statusCode != 404) {
                         loopFun({req: req, res: response});
@@ -104,28 +124,28 @@ A "test" represents requests being sent at a fixed rate over concurrent connecti
                         var headers = { };
                         if (response.headers['etag'] != null)
                             headers['if-match'] = response.headers['etag'];
-                        req = traceableRequest(client, 'PUT', '/resource', headers, "new value");
+                        req = nl.traceableRequest(client, 'PUT', '/resource', headers, "new value");
                         req.on('response', function(response) {
                             loopFun({req: req, res: response});
                         });
-                        req.close();
+                        req.end();
                     }
                 });
-                req.close();
+                req.end();
             }
         });
 
 A "ramp" increases the load of a particular test over some period of time.  Schedule a ramp after scheduling a test by calling `addRamp()`:
 
-    var test1 = addTest({
+    var test1 = nl.addTest({
         targetRps: 100,
         requestGenerator: function(client) {
-            return traceableRequest(client, 'GET', '/resource-' + Math.floor(Math.random()*10000));
+            return nl.traceableRequest(client, 'GET', '/resource-' + Math.floor(Math.random()*10000));
         }
     });
     
     // Add 100 requests / second using 10 concurrent connections to test1 between minutes 1 and 2
-    addRamp({
+    nl.addRamp({
         test: test1,
         numberOfSteps: 10,
         timeLimit: 60,
@@ -145,26 +165,37 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
 
         host: 'localhost',                      // host and port specify where to connect
         port: 8080,                             //
-        requestGenerator: null,                 // Specify one of: requestGenerator, requestLoop, or (method, path, requestData)
-        requestLoop: null,                      //   - A requestGenerator is a function that takes a http.Client param
-        method: 'GET',                          //     and returns a http.ClientRequest.
-        path: '/',                              //   - A requestLoop is a function that takes two params (loopFun, http.Client).
-        requestData: null,                      //     It should call loopFun({req: http.ClientRequest, res: http.ClientResponse})
-                                                //     after each operation to schedule the next iteration of requestLoop.
-                                                //   - (method, path, requestData) specify a single URL to test
-
+        requestGenerator: null,                 // Specify one of:
+                                                //   1. requestGenerator: a function
+                                                //         function(http.Client) ->  http.ClientRequest
+        requestLoop: null,                      //   2. requestLoop: is a function
+                                                //         function(loopFun, http.Client)
+                                                //     It must call
+                                                //         loopFun({
+                                                //             req: http.ClientRequest, 
+                                                //             res: http.ClientResponse});
+                                                //     after each transaction to finishes to schedule the 
+                                                //     next iteration of requestLoop.
+        method: 'GET',                          //   3. (method + path + requestData) specify a single URL to
+        path: '/',                              //     test
+        requestData: null,                      //
+                                                //
         numClients: 10,                         // Maximum number of concurrent executions of request loop
         numRequests: Infinity,                  // Maximum number of iterations of request loop
         timeLimit: 120,                         // Maximum duration of test in seconds
         targetRps: Infinity,                    // Number of times per second to execute request loop
         delay: 0,                               // Seconds before starting test
-
-        successCodes: null,                     // List of success HTTP response codes. Failures are logged to the error log.
-        stats: ['latency', 'result-codes'],     // Specify list of: latency, result-codes, uniques, concurrency. Note that "uniques"
-                                                // only shows up in summary report and requests must be made with traceableRequest().
-                                                // Not doing so will result in reporting only 2 uniques.
-        latencyConf: {percentiles: [.95,.99]},  // Set latencyConf.percentiles to percentiles to report for the 'latency' stat
-    }
+                                                //
+        successCodes: null,                     // List of success HTTP response codes. Non-success responses
+                                                // are logged to the error log.
+        stats: ['latency',                      // Specify list of: 'latency', 'result-codes', 'uniques', 
+                'result-codes'],                // 'concurrency'. Note that 'uniques' only shows up in
+                                                // Cumulative section of the report. traceableRequest() must
+                                                // be used for requets or only 2 uniques will be detected.
+        latencyConf: {                          // Set latencyConf.percentiles to percentiles to report for 
+            percentiles: [0.95,0.99]            // the 'latency' stat.
+        }                                       //
+    };
     
 **Ramp Definition:** The following object defines the parameters and defaults for a ramp, which is used by `addRamp()`:
     
@@ -181,23 +212,23 @@ Check out [examples/nodeloadlib-ex.js](http://github.com/benschmaus/nodeload/blo
 
 ## Test Monitoring ##
 
-`TEST_MONITOR` is an EventEmitter that emits 'update' events at regular intervals. This allows tests to be introspected for things like statistics gathering, report generation, etc. See `monitor.js`
+`TEST_MONITOR` is an EventEmitter that emits 'update' events at regular intervals. This allows tests to be introspected for things like statistics gathering, report generation, etc. See `monitor.js`.
 
-To set the interval for emitting 'update' events, define:
+To set the interval between 'update' events:
 
-* **MONITOR_INTERVAL**: seconds between emitting `TEST_MONITOR` 'update' events.
+    var nl = require('./lib/nodeloadlib').setMonitorIntervalMs(seconds)
 
 **Events:**
 
 * `TEST_MONITOR.on('test', callback(test))`: `addTest()` was called. The newly created test is passed to `callback`.
 * `TEST_MONITOR.on('start', callback(tests))`: `startTests()` was called. The list of tests being started is passed to `callback`.
 * `TEST_MONITOR.on('end', callback(tests))`: All tests finished.
-* `TEST_MONITOR.on('beforeUpdate', callback(tests))`: Emitted before the 'update' event. 
-* `TEST_MONITOR.on('update', callback(tests))`: Emitted at regular intervals while tests are running. Default is every 2 seconds. Define `MONITOR_INTERVAL` before requiring nodeloadlib to change the interval.
+* `TEST_MONITOR.on('update', callback(tests))`: Emitted at regular intervals while tests are running. Default is every 2 seconds. `nodeloadlib` uses this event internally to track statistics and generate the summary webpage.
+* `TEST_MONITOR.on('afterUpdate', callback(tests))`: Emitted after the 'update' event. 
 
 **Usage**:
 
-    TEST_MONITOR.on('update', function(tests) { 
+    nl.TEST_MONITOR.on('update', function(tests) { 
         for (var i in tests) {
             console.log(JSON.stringify(tests[i].stats['latency'].summary()))
         }
@@ -205,7 +236,7 @@ To set the interval for emitting 'update' events, define:
 
 ## Distributed Testing ##
 
-Functions to distribute tests across multiple slave `nodeload` instances. See `remote.js`
+Functions to distribute tests across multiple slave `nodeload` instances. See `remote.js`.
 
 **Functions:**
 
@@ -223,19 +254,19 @@ Then, create tests using `remoteTest(spec)` with the same `spec` fields in the *
 
     // This script must be run on master:8000, which will aggregate results. Each slave 
     // will GET http://internal-service:8080/ at 100 rps.
-    var t1 = remoteTest({
+    var t1 = nl.remoteTest({
         name: "Distributed test",
         host: 'internal-service',
         port: 8080,
         timeLimit: 20,
         targetRps: 100
     });
-    remoteStart('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], [t1]);
+    nl.remoteStart('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], [t1]);
 
 Alternatively, an existing `nodeload` script file can be used:
 
     // The file /path/to/load-test.js should contain valid javascript and can use any nodeloadlib functions
-    remoteStartFile('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], '/path/to/load-test.js');
+    nl.remoteStartFile('master:8000', ['slave1:8000', 'slave2:8000', 'slave3:8000'], '/path/to/load-test.js');
 
 When the remote tests complete, the master instance will call the `callback` parameter if non-null. It then automatically terminates after 3 seconds unless the parameter `stayAliveAfterDone==true`.
 
@@ -257,20 +288,28 @@ Call `SCHEDULER.schedule(spec)` to add a job. `spec.fun` must be a `function(loo
 
 If `spec.argGenerator` is non-null, it is called `spec.concurrency` times on startup. One return value is passed as the second parameter to each concurrent execution of `spec.fun`.  If null, the value of `spec.args` is passed to all executions of `spec.fun` instead.
 
-A scheduled job finishes after its target duration or it has been called the maximum number of times. `SCHEDULER` stops *all* running jobs once all *monitored* jobs finish. For example, 1 monitored job is scheduled for 5 seconds, and 2 unmonitored jobs are scheduled with no time limits. `SCHEDULER` will start all 3 jobs when `SCHEDULER.startAll()` is called, and stop all 3 jobs 5 seconds later.  Unmonitored jobs are useful for running side processes such as statistics gathering and reporting.
+A scheduled job finishes after its target duration or it has been called the maximum number of times. `SCHEDULER` stops *all* jobs once all *monitored* jobs finish. For example, 1 monitored job is scheduled for 5 seconds, and 2 unmonitored jobs are scheduled with no time limits. `SCHEDULER` will start all 3 jobs when `SCHEDULER.startAll()` is called, and stop all 3 jobs 5 seconds later.  Unmonitored jobs are useful for running side processes such as statistics gathering and reporting.
 
 Example:
 
     var t = 1;
-    SCHEDULER.schedule({
-        fun: funLoop(function(i) { sys.puts("Thread " + i) }),
+    nl.SCHEDULER.schedule({
+        fun: nl.LoopUtils.funLoop(function(i) { console.log("Thread " + i) }),
         argGenerator: function() { return t++; },
         concurrency: 5,
         rps: 10,
         duration: 10
     });
-    SCHEDULER.startAll(function() { sys.puts("Done.") });
+    nl.SCHEDULER.startAll(function() { sys.puts("Done.") });
 
+Alternatively, a Job can started independently. A Job instance is analogous to a single thread, and does not understand the `concurrency` parameter.
+
+    var i = 0;
+    var job = new nl.Job({
+        fun: nl.LoopUtils.funLoop(function() { console.log(i++) }),
+        rps: 10,
+        duration: 10
+    }).start();
 
 **Job Definition**: The following object defines the parameters and defaults for a job run by `SCHEDULER`:
 
@@ -301,29 +340,29 @@ The `ConditionalLoop` class provides a generic way to write a loop where each it
 * `ConditionalLoop(fun, args, conditions, delay):` Defines a loop (see **Loop Definition** below)
 * `ConditionalLoop.start(callback):` Starts executing and call `callback` on termination
 * `ConditionalLoop.stop():` Terminate the loop
-* `timeLimit(seconds)`, `maxExecutions(numberOfTimes)`: useful ConditionalLoop conditions
-* `rpsLoop(rps, fun)`: Wrap a `function(loopFun, args)` so ConditionalLoop calls it a set rate
-* `funLoop(fun)`: Wrap a non-IO performing `function(args)` so it can be used with a ConditionalLoop 
+* `LoopConditions.timeLimit(seconds)`, `LoopConditions.maxExecutions(numberOfTimes)`: useful ConditionalLoop conditions
+* `LoopUtils.rpsLoop(rps, fun)`: Wrap a `function(loopFun, args)` so ConditionalLoop calls it a set rate
+* `LoopUtils.funLoop(fun)`: Wrap a linearly executing `function(args)` so it can be used with a ConditionalLoop 
 
 **Usage:**
 
 Create a `ConditionalLoop` instance and call `ConditionalLoop.start()` to execute the loop. A function given to `ConditionalLoop` must be a `function(loopFun, args)` which ends by calling `loopFun()`.
 
-The `conditions` parameter is a list of functions. When any function returns `false`, the loop terminates. For example, the functions `timeLimit(seconds)` and `maxExecutions(numberOfTimes)` are conditions that limit the duration and number of iterations of a loop respectively.
+The `conditions` parameter is a list of functions. When any function returns `false`, the loop terminates. For example, the functions `LoopConditions.timeLimit(seconds)` and `LoopConditions.maxExecutions(numberOfTimes)` are conditions that limit the duration and number of iterations of a loop respectively.
 
 The loop also terminates if `ConditionalLoop.stop()` is called.
 
 Example:
 
     var fun = function(loopFun, startTime) {
-        sys.puts("It's been " + (new Date() - startTime) / 1000 + " seconds");
+        console.log("It's been " + (new Date() - startTime) / 1000 + " seconds");
         loopFun();
     };
     var stopOnFriday = function() {
         return (new Date()).getDay() < 5;
     }
-    var loop = new ConditionalLoop(rpsLoop(1, fun), new Date(), [stopOnFriday, timeLimit(604800 /*1 week*/)], 1);
-    loop.start(function() { sys.puts("It's Friday!") });
+    var loop = new nl.ConditionalLoop(nl.LoopUtils.rpsLoop(1, fun), new Date(), [stopOnFriday, nl.LoopConditions.timeLimit(604800 /*1 week*/)], 1);
+    loop.start(function() { console.log("It's Friday!") });
 
 **Loop Definition:**
 
@@ -374,6 +413,7 @@ In addition, these other methods are supported:
 * `Histogram.percentile(percentile)`: Calculate the given `percentile`, between 0 and 1, of the numbers in the histogram.
 * `Histogram.stddev()`: Standard deviation of the numbers in the histogram.
 * `LogFile.open()`: Open the file.
+* `LogFile.clear(text)`: Truncate the file, and write `text` if specified.
 * `LogFile.close()`: Close the file.
 * `Reportable.next()`: clear out the interval statistic for the next window.
 
@@ -404,21 +444,20 @@ Example:
 
     // Issue GET requests to random objects at localhost:8080/data/obj-{0-1000} for 1 minute and
     // track the number of unique URLs
-    var uniq = new Reportable(Uniques, 'Uniques');
-    var loop = monitorUniqueUrlsLoop(uniq, function(loopFun, client) {
-        var req = traceableRequest(client, 'GET', '/data/obj-' + Math.floor(Math.random()*1000));
-        req.on('response', function(response) {
-            sys.puts('ah')
-            loopFun({req: req, res: response});
+    var uniq = new nl.Reportable(Uniques, 'Uniques');
+    var loop = nl.LoopUtils.monitorUniqueUrlsLoop(uniq, function(loopFun, client) {
+        var req = nl.traceableRequest(client, 'GET', '/data/obj-' + Math.floor(Math.random()*1000));
+        req.on('response', function(res) {
+            loopFun({req: req, res: res});
         });
-        req.close();
+        req.end();
     });
     SCHEDULER.schedule({
         fun: loop,
         args: http.createClient(8080, 'localhost'),
         duration: 60
     }).start(function() {
-        sys.puts(JSON.stringify(uniq.summary()));
+        console.log(JSON.stringify(uniq.summary()));
     });
     
 
@@ -435,11 +474,22 @@ Functions for manipulating the report that is available during the test at http:
 * `Report.summary`: A JSON object displayed in table form in the summary webpage right side bar. 
 * `Report.getChart(name)`: Gets or creates a chart with the title `name` to the report and returns a `Chart` object. See `Chart.put(data)` below.
 * `Chart.put(data)`: Add the data, which is a map of { 'trend-1': value, 'trend-2': value, ... }, to the chart, which tracks the values for each trend over time.
-* `SUMMARY_HTML_REFRESH_PERIOD`: Change this global variable to set the auto-refresh period of the webpage in milliseconds.
 
 **Usage:**
 
-An HTTP server is started on port `HTTP_SERVER_PORT`, which defaults to 8000, unless `DISABLE_HTTP_SERVER=true` when `nodeloadlib` is included. Likewise, the file `results-{timestamp}-summary.html` is written to the current directory when the test ends unless `DISABLE_LOGS=true` when `nodeloadlib` is included.
+An HTTP server is started on port 8000 by default. Use:
+
+    `var nl = require('./lib/nodeloadlib).disableServer()`
+
+to disable the HTTP server, or
+
+    `var nl = require('./lib/nodeloadlib).usePort(port)`
+
+to change the port binding. The file `results-{timestamp}-summary.html` is written to the current directory. Use
+
+    `var nl = require('./lib/nodeloadlib).disableLogs()`
+
+to disable creation of this file.
 
 A report is automatically added for each test created by `addTest()` or `runTest()`. To add additional charts to the summary webpage:
 
@@ -450,8 +500,9 @@ A report is automatically added for each test created by `addTest()` or `runTest
         chart.summary = { 'Total increments': mycounter };
     }));
 
-The webpage automatically issues an AJAX request to refresh the text and chart data every `SUMMARY_HTML_REFRESH_PERIOD` milliseconds.
+The webpage automatically issues an AJAX request to refresh the text and chart data every 2 seconds by default. Change the refresh period using:
 
+    `var nl = require('./lib/nodeloadlib).setAjaxRefreshIntervalMs(milliseconds)`
 
 
 TIPS AND TRICKS
@@ -485,7 +536,7 @@ Some handy features worth mentioning.
             }
         });
         function printAllUrls() {
-            qputs(JSON.stringify(t.stats['uniques'].cumulative));
+            console.log(JSON.stringify(t.stats['uniques'].cumulative));
         }
         startTests(printAllUrls);
         
@@ -494,8 +545,8 @@ Some handy features worth mentioning.
 
     Just start `nodeloadlib.js` and it will serve files in the current directory.
     
-        $ node dist/nodeloadlib.js
-        $ curl -i localhost:8000/nodeloadlib.js     # executed in a separate terminal
+        $ node lib/nodeloadlib.js
+        $ curl -i localhost:8000/lib/nodeloadlib.js     # executed in a separate terminal
         HTTP/1.1 200 OK
         Content-Length: 50763
         Connection: keep-alive

@@ -11,11 +11,11 @@
 // as possible. Then, it performs a 90% read + 10% update test at total request rate of 300 rps.
 // From minutes 5-8, the read load is increased by 100 rps. The test runs for 10 minutes.
 
-var sys = require('sys');
-require('../dist/nodeloadlib');
+var sys = require('sys'),
+    nl = require('../dist/nodeloadlib');
 
 function riakUpdate(loopFun, client, url, body) {
-    var req = traceableRequest(client, 'GET', url, { 'host': 'localhost' });
+    var req = nl.traceableRequest(client, 'GET', url, { 'host': 'localhost' });
     req.on('response', function(response) {
         if (response.statusCode != 200 && response.statusCode != 404) {
             loopFun({req: req, res: response});
@@ -28,7 +28,7 @@ function riakUpdate(loopFun, client, url, body) {
             if (response.headers['x-riak-vclock'] != null)
                 headers['x-riak-vclock'] = response.headers['x-riak-vclock'];
                 
-            req = traceableRequest(client, 'PUT', url, headers, body);
+            req = nl.traceableRequest(client, 'PUT', url, headers, body);
             req.on('response', function(response) {
                 loopFun({req: req, res: response});
             });
@@ -39,7 +39,7 @@ function riakUpdate(loopFun, client, url, body) {
 }
 
 var i=0;
-runTest({
+nl.runTest({
     name: "Load Data",
     host: 'localhost',
     port: 8098,
@@ -55,9 +55,9 @@ runTest({
 }, startRWTest);
 
 function startRWTest() {
-    process.stdout.write("Running read + update test.");
+    console.log("Running read + update test.");
     
-    var reads = addTest({
+    var reads = nl.addTest({
         name: "Read",
         host: 'localhost',
         port: 8098,
@@ -69,10 +69,10 @@ function startRWTest() {
         stats: ['result-codes', 'latency', 'concurrency', 'uniques'],
         requestGenerator: function(client) {
             var url = '/riak/b/o' + Math.floor(Math.random()*8000);
-            return traceableRequest(client, 'GET', url, { 'host': 'localhost' });
+            return nl.traceableRequest(client, 'GET', url, { 'host': 'localhost' });
         }
     });
-    var writes = addTest({
+    var writes = nl.addTest({
         name: "Write",
         host: 'localhost',
         port: 8098,
@@ -89,7 +89,7 @@ function startRWTest() {
     });
     
     // From minute 5, schedule 10x 10 read requests per second in 3 minutes = adding 100 requests/sec
-    addRamp({
+    nl.addRamp({
         test: reads,
         numberOfSteps: 10,
         rpsPerStep: 10,
@@ -98,5 +98,5 @@ function startRWTest() {
         delay: 300
     });
     
-    startTests();
+    nl.startTests();
 }

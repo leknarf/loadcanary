@@ -6,7 +6,7 @@
 //
 var http = require('http');
 var sys = require('sys');
-require('../dist/nodeloadlib');
+var nl = require('../lib/nodeloadlib');
 sys.puts("Test server on localhost:9000.");
 http.createServer(function (req, res) {
     res.writeHead((Math.random() < .8) ? 200 : 404, {'Content-Type': 'text/plain'});
@@ -14,20 +14,20 @@ http.createServer(function (req, res) {
     res.end();
 }).listen(9000);
 
-var test = addTest({
+var test = nl.addTest({
     name: "Read",
     host: 'localhost',
     port: 9000,
     numClients: 10,
-    timeLimit: 6000,
+    timeLimit: 600,
     targetRps: 500,
     successCodes: [200,404],
     reportInterval: 2,
     stats: ['result-codes', 'latency', 'concurrency', 'uniques'],
     latencyConf: {percentiles: [.90, .999]},
     requestGenerator: function(client) {
-        return traceableRequest(client, 'GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
+        return nl.traceableRequest(client, 'GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
     }
 });
 
-startTests();
+nl.startTests();
