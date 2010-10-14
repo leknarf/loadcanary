@@ -5,7 +5,16 @@
     - multiple TEST_MONITOR.on('...') on slaves across tests 
     - master can't handle multiple test runs
 - Use git submodules
-- Console webpage (stats)
-- Console webpage (node manager)
+- Console
+    - Update charts & summary on real data
+    - Update test spec on real data
+    - Adding a master node should add its slaves
+    - Really "add" a node (ping and connect to it)
+    - Running / stopped indicators for each node 
+    - Start & stop any node
+    - Fire up nodeload on a new machine
+    - Send a test script to run on any node
+    - Interactive console for each node 
+    - Edit test spec and "restart" (stop existing jobs / start updated test)
 - Unit testing with a framework
 - Write a DEVELOPERS doc that explains the components
