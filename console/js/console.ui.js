@@ -158,9 +158,11 @@ function addNodeButton(node) {
     return $('#' + node.id);
 }
 function addNodeTabs(node) {
-    var tabs = $('<div id="tab-charts-' + node.id + '"><ul></ul></div>');
-    tabs.appendTo(pnlCharts);
-    tabs.tabs();
+    var tabs = $('<div id="tab-charts-' + node.id + '">\
+                    <div style="float: right; color: gray; margin: 2px 5px 0px 0px">&lt; n &nbsp;&nbsp; m &gt;</div>\
+                    <ul></ul>\
+                  </div>');
+    tabs.appendTo(pnlCharts).tabs();
     tabs.tabs('add', '#tab-console-' + node.id, 'Console: ' + node.name);
     tabs.bind('tabsselect', function(event, ui) {
         node.refreshReportsData();
