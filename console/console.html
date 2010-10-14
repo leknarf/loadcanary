@@ -4,271 +4,22 @@
         <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
         <title>Nodeload Console</title>
         <link type="text/css" href="css/pepper-grinder/jquery-ui-1.8.5.custom.css" rel="stylesheet" />    
+        <script type="text/javascript" src="js/dygraph-combined.min.js"></script>
         <script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
         <script type="text/javascript" src="js/jquery-ui-1.8.5.custom.min.js"></script>
         <script type="text/javascript" src="js/jquery.hotkeys.js"></script>
-        <script type="text/javascript" src="js/dygraph-combined.min.js"></script>
+        <script type="text/javascript" src="js/jquery.console.js"></script>
+        <script type="text/javascript" src="js/console.ui.js"></script>
+        <script type="text/javascript" src="js/console.data.js"></script>
         <script type="text/javascript">
-            jQuery.extend(jQuery.expr[':'], {
-              focus: function() { return this == document.activeElement; }
-            });
-            $(function(){
-                var hosts = {};
-                    selectedHost = null;
-                    
-                var doc = $(document),
-                    optNodes = $('#optNodes'),
-                    frmAddNode = $('#frmAddNode'),
-                    cmdAddNode = $('#cmdAddNode'),
-                    cmdAdd = $('#cmdAdd'),
-                    txtNewHost = $('#txtNewHost'),
-                    pnlCharts = $('#pnlCharts'),
-                    pnlRightColumn = $('#pnlRightColumn'),
-                    pnlSummary = $('#pnlSummary'),
-                    cmdNodes = [],
-                    tabCharts = [];
-                    
-                function initShortcuts() {
-                    doc.bind('keydown', 'd', function() {
-                        if (!frmAddNode.is(':visible')) {
-                            cmdAddNode.click();
-                            return false;
-                        } else if (!txtNewHost.is(':focus')) {
-                            txtNewHost.focus();
-                            return false;
-                        }
-                    });
-                    doc.bind('keydown', 'j', function() {
-                        var prev = optNodes.find('label.ui-state-active').parent().prev();
-                        if (!prev) return;
+            $(function(){ 
+                initUI(); 
 
-                        prev.find('input').button().click();
-                        optNodes.buttonset('refresh');
-                    });
-                    doc.bind('keyup', 'k', function() {
-                        var next = optNodes.find('label.ui-state-active').parent().next();
-                        if (!next) return;
-
-                        next.find('input').button().click();
-                        optNodes.buttonset('refresh');
-                    });
-                    doc.bind('keyup', 'n', function() {
-                        if (!selectedHost) return;
-                        var selected = selectedHost.tabs.tabs('option', 'selected');
-                        selectedHost.tabs.tabs('select', selected-1);
-                    });
-                    doc.bind('keyup', 'm', function() {
-                        if (!selectedHost) return;
-                        var selected = selectedHost.tabs.tabs('option', 'selected');
-                        selectedHost.tabs.tabs('select', selected+1);
-                    });
-                    
-                    txtNewHost.bind('keydown', 'esc', function() {
-                        hideAddNodeDialog();
-                    });
-                    txtNewHost.bind('keydown', 'return', function() {
-                        if (frmAddNode.is(':visible'))
-                            cmdAdd.click();
-                    });
+                if (location.host) {
+                    addNode(location.host);
+                } else {
+                    addNode('localhost:8000');
                 }
-                function initUI() {
-                    optNodes.buttonset();
-                    cmdAddNode.button({
-                        text: false,
-                        icons: {
-                            primary: "ui-icon-plusthick"
-                        }
-                    }).click(function(){
-                        toggleAddNodeDialog();
-                        return false;
-                    });
-                    cmdAdd.click(function() {
-                        if (txtNewHost.val().trim().length > 0) {
-                            addNode(txtNewHost.val());
-                            hideAddNodeDialog();
-                        }
-                    });
-
-                    pnlRightColumn.accordion({ 
-                        header: "h3",
-                        autoHeight: false,
-                    });
-
-                    initShortcuts();
-
-                    if (location.host) {
-                        addNode(location.host);
-                    } else {
-                        addNode('localhost:8000');
-                    }
-                }
-
-                function toggleAddNodeDialog() {
-                    frmAddNode.toggle();
-                    if (frmAddNode.is(':visible')) {
-                        txtNewHost.val('').focus();
-                    } else {
-                        cmdAdd.focus();
-                    }
-                }
-                function hideAddNodeDialog() {
-                    cmdAdd.focus();
-                    frmAddNode.hide();
-                }
-                function getIdFromString(str) {
-                    return str.replace(/[^a-zA-Z0-9-]/g,'-');
-                }
-                function getNodeId(name) {
-                    var parts = name.split(':');
-                    if (parts.length == 1)
-                        return getIdFromString(name) + "-8000";
-                    return getIdFromString(name);
-                }
-                function addNode(name) {
-                    var nodeId = getNodeId(name);
-
-                    if (hosts[nodeId]) return;
-                    var host = hosts[nodeId] = {
-                        name: name,
-                        id: nodeId
-                    };
-
-                    optNodes.append('<span id="cmd-' + nodeId + '"><input type="radio" id="' + nodeId + '" name="optNodes" checked="true"/><label for="' + nodeId + '">' + name + '</label></span>');
-                    $('#' + nodeId ).button({
-                        icons: { secondary: 'ui-icon-squaresmall-close' }
-                    }).click(function() {
-                        if (selectedHost === host) return;
-                        if (selectedHost) selectedHost.tabs.hide();
-                        selectedHost = host;
-                        selectedHost.tabs.show();
-                    });
-                    $('#cmd-' + nodeId + ' span.ui-icon-squaresmall-close').click(function(){
-                        removeNode(nodeId);
-                    });
-                    optNodes.buttonset();
-
-                    var tests = getTests();
-                    var tabs = $('<div id="tab-charts-' + nodeId + '"><ul></ul></div>');
-                    tabs.appendTo(pnlCharts).tabs();
-                    tabs.tabs('add', '#tab-console-' + nodeId, 'Console: ' + name);
-                    tabs.bind('tabsselect', function(event, ui) {
-                        host.reports = getReports(host);
-                        refreshCharts(nodeId);
-                        refreshSummary(nodeId, $(ui.panel).attr('report-name'));
-                    });
-                    tabs.hide();
-                    host.tabs = tabs;
-
-                    $('#' + nodeId).click();
-                    host.reports = getReports(host);
-                    refreshCharts(nodeId);
-                    tabs.tabs('select', 0);
-                }
-                function removeNode(nodeId) {
-                    if (!hosts[nodeId]) return;
-                    $('#cmd-' + nodeId).hide();
-                    $('#cmd-' + nodeId).remove();
-                    hosts[nodeId] = null;
-                    optNodes.buttonset();
-                }
-                function refreshSummary(nodeId, reportName) {
-                    pnlSummary.text(reportName);
-                }
-                function refreshCharts(nodeId) {
-                    if (!hosts[nodeId]) return;
-
-                    var host = hosts[nodeId],
-                        reports = host.reports;
-                    
-                    for (var i in reports) {
-                        // Add tabs for any new reports
-                        var reportId = getIdFromString(i),
-                            tabId = 'tab-' + reportId + '-' + nodeId,
-                            tab = $('#' + tabId);
-                        if (tab.length == 0) {
-                            host.tabs.tabs('add', '#' + tabId, i, host.tabs.tabs('length')-1);
-                            tab = $('#' + tabId).attr('report-name', i);
-                        }
-
-                        // Add charts from report
-                        var charts = reports[i].charts;
-                        for (var j in charts) {
-                            var chartId = 'chart-' + nodeId + '-' + reportId + '-' + getIdFromString(j),
-                                chartContainerId = chartId + '-container',
-                                chartLegendId = chartId + '-legend';
-                            tab.append(
-                                '<h2>' + j + '</h2><div id="'+ chartContainerId +'" style="position:relative;width:100%;overflow:hidden"> \
-                                    <span id="'+ chartId +'" style="height:200px"/>\
-                                    <span id="'+ chartLegendId +'" style="position:absolute; top:0px; right: 0px"/>\
-                                </div>');
-                            new Dygraph(
-                                $('#' + chartId)[0],
-                                charts[j].rows,
-                                {labelsDiv: $('#' + chartLegendId)[0],
-                                 labelsSeparateLines: true,
-                                 labels: charts[j].columns,
-                                 width: "62%"
-                                });
-                        }
-                    }
-                }
-                
-                // Utilities
-                function jsonToTable(json) {
-                    var txt = "";
-                    for (var i in json)
-                        txt += "<tr><td class=label>" + i + "</td><td>" + json[i] + "</td></tr>";
-                    return "<table>" + txt + "</table>";
-                };
-
-                // Stubs
-                function getTests(nodeId) {
-                    return ['Read', 'Read+Write']
-                }
-                function getReports(host) {
-                    return {
-                        "Read": {
-                            "summary": {
-                                "Read: Latency min": 5,
-                                "Read: Latency max": 119,
-                                "Read: Latency avg": 23.8,
-                                "Read: Latency median": 22,
-                                "Read: Latency 95%": 38,
-                                "Read: Latency 99%": 64,
-                                "Read: Request Bytes total": 0,
-                                "Read: Response Bytes total": 602208
-                            },
-                            "charts": {
-                                "Read: Latency": {
-                                    "name": "Read: Latency",
-                                    "columns": ["time","min","max","avg","median","95%","99%"],
-                                    "rows": [[0.01,0,0,0,0,0,0],[0.01,5,119,25.3,22,51,107],[0.03,6,54,22.9,22,38,48],[0.05,11,66,23.3,21,37,55]]
-                                },
-                                "Read: Request Bytes": {
-                                    "name": "Read: Request Bytes",
-                                    "columns": ["time","total"],
-                                    "rows": [[0.01,0],[0.01,138144],[0.03,153984],[0.05,189024],[0.06,204480]]
-                                }
-                            }
-                        },
-                        "Write": {
-                            "summary": {
-                                "Write: Result codes 404": 6273,
-                                "Write: Result codes total": 6273,
-                                "Write: Result codes rps": 2074.4,
-                            },
-                            "charts": {
-                                "Write: Result Codes": {
-                                    "name": "Write: Result Codes",
-                                    "columns": ["time","404","total","rps"],
-                                    "rows": [[0.01,0,0,0],[0.01,1439,1439,1423.3],[0.03,1604,1604,1613.7],[0.05,1969,1969,1969],[0.06,2130,2130,2119.4]],
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                initUI();
             });
         </script>
         <style type="text/css">
@@ -352,8 +103,7 @@
                 </tr></table>
             </div>
             <div class="clsMainRow">
-                <div id="pnlCharts">
-                </div>
+                <div id="pnlCharts"></div>
                 <div id="pnlRightColumn">
                     <div>
                         <h3><a href="#">Overall Statistics</a></h3>
