@@ -17,5 +17,6 @@
     - Interactive console for each node 
     - Edit test spec and "restart" (stop existing jobs / start updated test)
     - Clean up removed nodes properly
+    - Download data as csv
 - Unit testing with a framework
 - Write a DEVELOPERS doc that explains the components

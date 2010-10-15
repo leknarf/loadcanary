@@ -210,8 +210,8 @@ function resizeReportGraphs() {
     }
 }
 function refreshReportGraphs(node) {
-    var reports = node.reports;
-    var summary = {}
+    var reports = node.reports,
+        summary = {};
     for (var i in reports) {
         // Add tabs for any new reports
         var reportId = getIdFromString(i),
