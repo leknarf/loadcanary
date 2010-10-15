@@ -5,7 +5,7 @@ body{
 /* Base elements: background, header, main content panels
 ----------------------------------------------------------*/
 .clsDarkBackground{
-    background: #6e4f1c url(css/pepper-grinder/images/ui-bg_diagonal-maze_20_6e4f1c_10x10.png) 50% 50% repeat;
+    background: #6e4f1c url(pepper-grinder/images/ui-bg_diagonal-maze_20_6e4f1c_10x10.png) 50% 50% repeat;
 }
 #pnlBackground{
     padding: 0.5%;

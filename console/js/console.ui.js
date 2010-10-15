@@ -53,6 +53,12 @@ function initUI() {
     });
 
     initShortcuts();
+
+    var refreshGraphs = function() {
+        if (selectedNode) refreshReportGraphs(selectedNode);
+        setTimeout(function() { refreshGraphs() }, 2000);
+    };
+    refreshGraphs();
 }
 
 // Keyboard navigation
@@ -66,26 +72,26 @@ function initShortcuts() {
             return false;
         }
     });
-    doc.bind('keydown', 'j', function() {
+    doc.bind('keydown', 'k', function() {
         var prev = optNodes.find('label.ui-state-active').parent().prev();
         if (!prev) return;
 
         prev.find('input').button().click();
         optNodes.buttonset('refresh');
     });
-    doc.bind('keydown', 'k', function() {
+    doc.bind('keydown', 'j', function() {
         var next = optNodes.find('label.ui-state-active').parent().next();
         if (!next) return;
 
         next.find('input').button().click();
         optNodes.buttonset('refresh');
     });
-    doc.bind('keydown', 'n', function() {
+    doc.bind('keydown', 'p', function() {
         if (!selectedNode) return;
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected-1);
     });
-    doc.bind('keydown', 'm', function() {
+    doc.bind('keydown', 'n', function() {
         if (!selectedNode) return;
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected+1);
@@ -104,7 +110,6 @@ function initShortcuts() {
 // ---------------
 // UI Control
 // ---------------
-var selectedNode = null;
 var graphs = {};
 
 function toggleAddNodeDialog() {
@@ -165,13 +170,12 @@ function addNodeButton(node) {
 }
 function addNodeTabs(node) {
     var tabs = $('<div id="tab-charts-' + node.id + '">\
-                    <div class="clsShortcutKeys">&lt; n &nbsp;&nbsp; m &gt;</div>\
+                    <div class="clsShortcutKeys">&lt; p &nbsp;&nbsp; n &gt;</div>\
                     <ul></ul>\
                   </div>');
     tabs.appendTo(pnlCharts).tabs();
     tabs.tabs('add', '#tab-console-' + node.id, 'Console: ' + node.name);
     tabs.bind('tabsselect', function(event, ui) {
-        node.refreshReportsData();
         refreshReportGraphs(node);
     });
     tabs.hide();
@@ -232,7 +236,7 @@ function refreshReportGraphs(node) {
         }
     }
     
-    pnlSummary.text("Summary data for " + node.id);
+    pnlSummary.text("Summary data for " + node.id + ' [' + Math.random().toFixed(2)*100 + ']');
 }
 
 // ---------------

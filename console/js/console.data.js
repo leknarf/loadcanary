@@ -1,5 +1,13 @@
 var nodes = {};
-    
+var selectedNode = null;
+
+function initData() {
+    refreshReports = function() {
+        if (selectedNode) selectedNode.refreshReportsData();
+        setTimeout(function() { refreshReports() }, 2000);
+    };
+    refreshReports();
+}
 function getIdFromString(str) {
     return str.replace(/[^a-zA-Z0-9-]/g,'-');
 }
@@ -16,11 +24,8 @@ function getNodeObject(name) {
     var node = nodes[nodeId] = {
         id: nodeId,
         name: name,
-        reports: getReports(node),
-        
-        refreshReportsData: function() {
-            this.reports = getReports(node);
-        }
+        reports: {},
+        refreshReportsData: function() { refreshReportsData(node); }
     };
 
     return node;
@@ -34,8 +39,8 @@ function deleteNodeObject(node) {
 function getTests(nodeId) {
     return ['Read', 'Read+Write']
 }
-function getReports(host) {
-    return {
+function refreshReportsData(node) {
+    node.reports = {
         "Read": {
             "summary": {
                 "Read: Latency min": 5,
