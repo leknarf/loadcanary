@@ -4,6 +4,8 @@
 // ---------------
 // UI creation
 // ---------------
+var CHART_LEGEND_WIDTH = 70;
+
 var doc, optNodes, frmAddNode, cmdAddNode, cmdAdd, txtNewHost, 
     pnlCharts, pnlRightColumn, pnlSummary;
 
@@ -39,6 +41,10 @@ function initUI() {
             hideAddNodeDialog();
             addNode(name);
         }
+    });
+    
+    $(window).resize(function() {
+        resizeReportGraphs();
     });
 
     pnlRightColumn.accordion({ 
@@ -178,9 +184,19 @@ function getTabForReport(node, reportName, reportId) {
 
     if (!tab.exists()) {
         node.tabs.tabs('add', tabId, reportName, node.tabs.tabs('length')-1);
+        node.tabs.bind('tabsshow', function(event, ui) {
+            resizeReportGraphs();
+        })
         tab = $(tabId).attr('report-name', name);
     }
     return tab;
+}
+function resizeReportGraphs() {
+    for (var i in graphs) {
+        if (graphs[i].container.is(':visible')) {
+            graphs[i].resize(graphs[i].container.width() - CHART_LEGEND_WIDTH - 5, graphs[i].container.height());
+        }
+    }
 }
 function refreshReportGraphs(node) {
     var reports = node.reports;
@@ -198,17 +214,18 @@ function refreshReportGraphs(node) {
             if (!graphs[chartId]) {
                 tab.append(
                     '<h2>' + j + '</h2><div id="'+ chartContainerId +'" style="position:relative;width:100%;overflow:hidden"> \
-                        <span id="'+ chartId +'" style="height:200px"/>\
-                        <span id="'+ chartLegendId +'" style="position:absolute; top:0px; right: 0px"/>\
+                        <div id="'+ chartId +'" style="height:200px;"/>\
+                        <div id="'+ chartLegendId +'" style="position:absolute; display:block; top:0px; right: 0px; min-width:'+ CHART_LEGEND_WIDTH +'px"/>\
                     </div>');
                 graphs[chartId] = new Dygraph(
-                    $('#' + chartId)[0],
+                    document.getElementById(chartId),
                     charts[j].rows,
                     {labelsDiv: $('#' + chartLegendId)[0],
                      labelsSeparateLines: true,
                      labels: charts[j].columns,
-                     width: "62%"
+                     strokeWidth: 1.5,
                     });
+                graphs[chartId].container = $('#' + chartContainerId);
             } else {
                 graphs[chartId].updateOptions({"file": charts[j].rows });
             }
