@@ -16,5 +16,6 @@
     - Send a test script to run on any node
     - Interactive console for each node 
     - Edit test spec and "restart" (stop existing jobs / start updated test)
+    - Clean up removed nodes properly
 - Unit testing with a framework
 - Write a DEVELOPERS doc that explains the components

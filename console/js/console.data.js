@@ -39,6 +39,7 @@ function getTests(nodeId) {
     return ['Read', 'Read+Write']
 }
 function refreshReportsData(node) {
+    if (!node) return;
     $.getJSON('http://' + node.name + '/data/', function(data) {
         node.reports = data;
     });

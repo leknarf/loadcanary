@@ -110,8 +110,6 @@ function initShortcuts() {
 // ---------------
 // UI Control
 // ---------------
-var graphs = {};
-
 function toggleAddNodeDialog() {
     frmAddNode.toggle();
     if (frmAddNode.is(':visible')) {
@@ -129,6 +127,7 @@ function addNode(name) {
 
     node.button = addNodeButton(node);
     node.tabs = addNodeTabs(node);
+    node.graphs = {};
     node.selectNode = function() {
         node.button.click();
     }
@@ -136,15 +135,23 @@ function addNode(name) {
         node.tabs.tabs('select', index);
     }
 
-    refreshReportGraphs(node);
+    refreshReportsData(node);
+    setTimeout(function() { refreshReportGraphs(node) }, 200);
 
     node.selectNode();
     node.selectReportGraph(0);
 }
 function removeNode(node) {
-    $('#cmd-' + node.id).hide();
-    $('#cmd-' + node.id).remove();
+    var button = $('#cmd-' + node.id);
+    if (node === selectedNode) {
+        var next = button.next();
+        if (!next.exists()) next = button.prev();
+        if (next) next.find('input').button().click();
+    }
+    button.hide();
+    button.remove();
     optNodes.buttonset();
+    node.tabs.remove();
     deleteNodeObject(node);
 }
 function addNodeButton(node) {
@@ -196,9 +203,9 @@ function getTabForReport(node, reportName, reportId) {
     return tab;
 }
 function resizeReportGraphs() {
-    for (var i in graphs) {
-        if (graphs[i].container.is(':visible')) {
-            graphs[i].resize(graphs[i].container.width() - CHART_LEGEND_WIDTH - 5, graphs[i].container.height());
+    for (var i in selectedNode.graphs) {
+        if (selectedNode.graphs[i].container.is(':visible')) {
+            selectedNode.graphs[i].resize(selectedNode.graphs[i].container.width() - CHART_LEGEND_WIDTH - 5, selectedNode.graphs[i].container.height());
         }
     }
 }
@@ -216,13 +223,13 @@ function refreshReportGraphs(node) {
             var chartId = 'chart-' + node.id + '-' + reportId + '-' + getIdFromString(j),
                 chartContainerId = chartId + '-container',
                 chartLegendId = chartId + '-legend';
-            if (!graphs[chartId]) {
+            if (!node.graphs[chartId]) {
                 tab.append(
                     '<h2 class="clsChartTitle">' + j + '</h2><div id="'+ chartContainerId +'" class="clsChartContainer"> \
                         <div id="'+ chartId +'" class="clsChart" style="height:200px"/>\
                         <div id="'+ chartLegendId +'" class="clsChartLegend" style="min-width:'+ CHART_LEGEND_WIDTH +'px"/>\
                     </div>');
-                graphs[chartId] = new Dygraph(
+                node.graphs[chartId] = new Dygraph(
                     document.getElementById(chartId),
                     charts[j].rows,
                     {labelsDiv: $('#' + chartLegendId)[0],
@@ -230,9 +237,9 @@ function refreshReportGraphs(node) {
                      labels: charts[j].columns,
                      strokeWidth: 1.5,
                     });
-                graphs[chartId].container = $('#' + chartContainerId);
+                node.graphs[chartId].container = $('#' + chartContainerId);
             } else {
-                graphs[chartId].updateOptions({"file": charts[j].rows });
+                node.graphs[chartId].updateOptions({"file": charts[j].rows });
             }
         }
 
