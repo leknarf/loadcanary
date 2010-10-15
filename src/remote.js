@@ -147,8 +147,11 @@ function RemoteSlave(id, master) {
     this.tests = [];
     if (master) {
         master = master.split(':');
-        this.masterhost = master[0];
-        this.master = http.createClient(master[1], master[0]);
+        this.master = { 
+            host: master[0], 
+            port: master[1],
+            client: http.createClient(master[1], master[0])
+        };
     }
 }
 RemoteSlave.prototype = {
@@ -176,9 +179,9 @@ RemoteSlave.prototype = {
         this.sendReport_('/remote/progress', {slaveId: this.id, data: reports});
     },
     sendReport_: function(url, object) {
-        if (this.master) {
+        if (this.master.client) {
             var s = JSON.stringify(object);
-            var req = this.master.request('POST', url, {'host': this.masterhost, 'content-length': s.length});
+            var req = this.master.client.request('POST', url, {'host': this.master.host, 'content-length': s.length});
             req.write(s);
             req.end();
         }
@@ -204,6 +207,7 @@ function RemoteWorkerPool(master, slaves, fun) {
             id: slaves[i],
             state: "notstarted",
             host: slave[0], 
+            port: slave[1],
             client: http.createClient(slave[1], slave[0])
         };
     }
@@ -315,6 +319,21 @@ function serveRemote(url, req, res) {
             eval(remoteFun);
             sendStatus(200);
         });
+    } else if (req.method == "GET" && req.url == "/remote/hosts") {
+        var hosts = [];
+        if (SLAVE_CONFIG) {
+            hosts.push(SLAVE_CONFIG.master.host + ':' + SLAVE_CONFIG.master.port);
+        }
+        if (WORKER_POOL) {
+            hosts.push(WORKER_POOL.master);
+            for (var i in WORKER_POOL.slaves) {
+                hosts.push(i);
+            }
+        }
+        var body = JSON.stringify(hosts);
+        res.writeHead(200, {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Content-Length": body.length});
+        res.write(body);
+        res.end();
     } else if (req.method == "GET" && req.url == "/remote/state") {
         if (SCHEDULER.running == true) {
             sendStatus(200);

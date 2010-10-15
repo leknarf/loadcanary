@@ -86,12 +86,12 @@ function initShortcuts() {
         next.find('input').button().click();
         optNodes.buttonset('refresh');
     });
-    doc.bind('keydown', 'p', function() {
+    doc.bind('keydown', 'h', function() {
         if (!selectedNode) return;
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected-1);
     });
-    doc.bind('keydown', 'n', function() {
+    doc.bind('keydown', 'l', function() {
         if (!selectedNode) return;
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected+1);
@@ -125,14 +125,22 @@ function hideAddNodeDialog() {
 function addNode(name) {
     var node = getNodeObject(name);
 
-    node.button = addNodeButton(node);
-    node.tabs = addNodeTabs(node);
-    node.graphs = {};
-    node.selectNode = function() {
-        node.button.click();
-    }
-    node.selectReportGraph = function(index) {
-        node.tabs.tabs('select', index);
+    if (!node.uiloaded) {
+        node.uiloaded = true;
+        node.button = addNodeButton(node);
+        node.tabs = addNodeTabs(node);
+        node.graphs = {};
+        node.selectNode = function() {
+            node.button.click();
+            optNodes.buttonset('refresh');
+        }
+        node.selectReportGraph = function(index) {
+            node.tabs.tabs('select', index);
+        }
+
+        $.getJSON('http://' + node.name + '/remote/hosts', function(hosts, status) {
+            if (hosts) hosts.forEach(function(name) { addNode(name) });
+        });
     }
 
     refreshReportsData(node);
@@ -154,6 +162,14 @@ function removeNode(node) {
     node.tabs.remove();
     deleteNodeObject(node);
 }
+function selectNode(node) {
+    if (selectedNode === node) return;
+    if (selectedNode) selectedNode.tabs.hide();
+    selectedNode = node;
+    selectedNode.tabs.show();
+    refreshReportGraphs(node);
+    resizeReportGraphs();
+}
 function addNodeButton(node) {
     optNodes.append(
         '<span id="cmd-' + node.id + '">\
@@ -163,11 +179,7 @@ function addNodeButton(node) {
     $('#' + node.id ).button({
         icons: { secondary: 'ui-icon-squaresmall-close' }
     }).click(function() {
-        if (selectedNode === node) return;
-        if (selectedNode) selectedNode.tabs.hide();
-        selectedNode = node;
-        selectedNode.tabs.show();
-        refreshReportGraphs(node);
+        selectNode(node);
     });
     $('#cmd-' + node.id + ' span.ui-icon-squaresmall-close').click(function(){
         removeNode(node);
@@ -177,14 +189,11 @@ function addNodeButton(node) {
 }
 function addNodeTabs(node) {
     var tabs = $('<div id="tab-charts-' + node.id + '">\
-                    <div class="clsShortcutKeys">&lt; p &nbsp;&nbsp; n &gt;</div>\
+                    <div class="clsShortcutKeys">&lt; h &nbsp;&nbsp; l &gt;</div>\
                     <ul></ul>\
                   </div>');
     tabs.appendTo(pnlCharts).tabs();
     tabs.tabs('add', '#tab-console-' + node.id, 'Console: ' + node.name);
-    tabs.bind('tabsselect', function(event, ui) {
-        refreshReportGraphs(node);
-    });
     tabs.hide();
     return tabs;
 }
@@ -247,6 +256,11 @@ function refreshReportGraphs(node) {
     }
     
     pnlSummary.html(jsonToTable(summary));
+    
+    if (!node.graphsloaded && node.tabs.tabs('length') > 1) {
+        node.graphsloaded = true;
+        node.tabs.tabs('select', 0);
+    }
 }
 
 // ---------------
