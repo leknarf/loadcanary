@@ -165,7 +165,7 @@ function addNodeButton(node) {
 }
 function addNodeTabs(node) {
     var tabs = $('<div id="tab-charts-' + node.id + '">\
-                    <div style="float: right; color: gray; margin: 2px 5px 0px 0px">&lt; n &nbsp;&nbsp; m &gt;</div>\
+                    <div class="clsShortcutKeys">&lt; n &nbsp;&nbsp; m &gt;</div>\
                     <ul></ul>\
                   </div>');
     tabs.appendTo(pnlCharts).tabs();
@@ -213,9 +213,9 @@ function refreshReportGraphs(node) {
                 chartLegendId = chartId + '-legend';
             if (!graphs[chartId]) {
                 tab.append(
-                    '<h2>' + j + '</h2><div id="'+ chartContainerId +'" style="position:relative;width:100%;overflow:hidden"> \
-                        <div id="'+ chartId +'" style="height:200px;"/>\
-                        <div id="'+ chartLegendId +'" style="position:absolute; display:block; top:0px; right: 0px; min-width:'+ CHART_LEGEND_WIDTH +'px"/>\
+                    '<h2 class="clsChartTitle">' + j + '</h2><div id="'+ chartContainerId +'" class="clsChartContainer"> \
+                        <div id="'+ chartId +'" class="clsChart" style="height:200px"/>\
+                        <div id="'+ chartLegendId +'" class="clsChartLegend" style="min-width:'+ CHART_LEGEND_WIDTH +'px"/>\
                     </div>');
                 graphs[chartId] = new Dygraph(
                     document.getElementById(chartId),
