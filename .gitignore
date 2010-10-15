@@ -1,2 +1,4 @@
+results*.log
 results*.html
+src/*.tpl.js
 tmp
