@@ -204,6 +204,7 @@ function resizeReportGraphs() {
 }
 function refreshReportGraphs(node) {
     var reports = node.reports;
+    var summary = {}
     for (var i in reports) {
         // Add tabs for any new reports
         var reportId = getIdFromString(i),
@@ -234,9 +235,11 @@ function refreshReportGraphs(node) {
                 graphs[chartId].updateOptions({"file": charts[j].rows });
             }
         }
+
+        $.extend(summary, reports[i].summary);
     }
     
-    pnlSummary.text("Summary data for " + node.id + ' [' + Math.random().toFixed(2)*100 + ']');
+    pnlSummary.html(jsonToTable(summary));
 }
 
 // ---------------

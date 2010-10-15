@@ -156,6 +156,10 @@ function serveReport(url, req, res) {
         } else {
             res.writeHead(404, {"Content-Type": "text/html", "Content-Length": 0});
         }
+    } else if (req.method == "GET" && url == "/data/") {
+        var json = JSON.stringify(REPORT_MANAGER.reports);
+        res.writeHead(200, {"Access-Control-Allow-Origin": "*", "Content-Type": "application/json", "Content-Length": json.length});
+        res.write(json);
     } else {
         res.writeHead(405, {"Content-Length": 0});
     }
