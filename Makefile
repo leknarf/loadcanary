@@ -1,17 +1,18 @@
 .PHONY: clean templates compile
-SOURCES = src/header.js src/utils.js src/config.js src/api.js src/evloops.js src/scheduler.js src/monitor.js src/remote.js src/stats.js src/statsmgr.js src/log.js src/report.js src/http.js src/summary.tpl.js deps/dygraph.js deps/template.js
+PROCESS_TPL = scripts/process_tpl.js
+SOURCES = lib/header.js lib/*.tpl.js lib/utils.js lib/config.js lib/testapi.js lib/job.js lib/monitoring.js lib/remote.js lib/stats.js lib/log.js lib/reporting.js lib/http.js lib/template.js
 
 all: compile
 
 clean:
-	rm -rf ./lib
+	rm -f ./lib/nodeload.js ./lib/*.tpl.js
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
-	rm -r src/summary.tpl.js
 
 templates:
-	echo "var `head -n1 src/summary.tpl` = '`awk '{ if (NR > 1) { printf \"%s\\\\\\\\n\", $$0 }}' src/summary.tpl`'" > src/summary.tpl.js
+	$(PROCESS_TPL) REPORT_SUMMARY_TEMPLATE lib/summary.tpl > lib/summary.tpl.js
+	$(PROCESS_TPL) DYGRAPH_SOURCE lib/dygraph.tpl > lib/dygraph.tpl.js
 
 compile: templates
-	mkdir -p ./lib
-	cat $(SOURCES) | ./deps/jsmin.js > ./lib/nodeloadlib.js
-	cp src/options.js src/nodeload.js lib/
+	echo "#!/usr/bin/env node" > ./lib/nodeload.js
+	cat $(SOURCES) | ./scripts/jsmin.js >> ./lib/nodeload.js
+	chmod +x ./lib/nodeload.js
