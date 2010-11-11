@@ -62,7 +62,7 @@ module.exports = {
             assert.ok(summary);
             assert.ok(summary['transaction'] && summary['transaction']['runtime']);
             assert.ok(summary['operation'] && summary['operation']['runtime']);
-            assert.ok(Math.abs(summary['transaction']['runtime'].median - 100) <= 5, '100 == ' + summary['transaction']['runtime'].median);
+            assert.ok(Math.abs(summary['transaction']['runtime'].median - 100) <= 10, summary['transaction']['runtime'].median.toString());
             assert.ok(Math.abs(summary['operation']['runtime'].median - 25) <= 5);
         });
     },

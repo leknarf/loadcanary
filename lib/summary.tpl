@@ -1,4 +1,3 @@
-REPORT_SUMMARY_TEMPLATE
 <html>
     <head>
         <title>Test Results</title>
@@ -34,51 +33,39 @@ REPORT_SUMMARY_TEMPLATE
     </head>
 
     <body>
-        <div id="header"><h1>Test Results</h1><p><%=new Date()%></p></div>
+        <div id="header"><h1>Test Results</h1><p id="timestamp"><%=new Date()%></p></div>
         <div id="page">
             <div id="main">
-                <% for (var i in reports) { %>
-                <% for (var j in reports[i].charts) { %>
-                <% var chart = reports[i].charts[j]; %>
-                    <div class="post"><h2><%=chart.name%></h2>
+                <% reports.forEach(function(report) { %>
+                <% for (var j in report.charts) { %>
+                <% var chart = report.charts[j]; %>
+                    <div class="post"><h2><%=report.name%>: <%=chart.name%></h2>
                         <div class="entry" style="width:100%;float:left">
                             <div id="chart<%=chart.uid%>" style="float:left;width:660px;height:200px;"></div>
                             <div id="chart<%=chart.uid%>legend" style="float:left;width:80px;height:200px;"></div>
                         </div>
                     </div>
                 <% } %>
-                <% } %>
+                <% }); %>
             </div>
             <div id="sidebar">
                 <div class="post"><h2>Cumulative</h2><div class="entry">
-                    <% for (var i in reports) { %>
-                        <p class="statsTable" id="reportSummary<%=reports[i].uid%>"/></p>
+                    <% reports.forEach(function(report) { %>
+                        <p class="statsTable" id="reportSummary<%=report.uid%>"/></p>
                         <script language="javascript" type="text/javascript">
-                            document.getElementById("reportSummary<%=reports[i].uid%>").innerHTML = jsonToTable(<%=JSON.stringify(reports[i].summary)%>);
+                            document.getElementById("reportSummary<%=report.uid%>").innerHTML = jsonToTable(<%=JSON.stringify(report.summary)%>);
                         </script>
-                    <% } %>
+                    <% }); %>
                 </div></div>
             </div>
         </div></div>
         
         
         <script id="source" language="javascript" type="text/javascript">
-            <% for (var i in reports) { %>
-                <% var rid = reports[i].uid; %>
-                if(navigator.appName == "Microsoft Internet Explorer") { http<%=rid%> = new ActiveXObject("Microsoft.XMLHTTP"); } else { http<%=rid%> = new XMLHttpRequest(); }
-                setInterval(function() {
-                    http<%=rid%>.open("GET", "/data/<%=querystring.escape(reports[i].name)%>/summary");
-                    http<%=rid%>.onreadystatechange=function() { 
-                        if(http<%=rid%>.readyState == 4 && http<%=rid%>.status == 200) {
-                            summary = JSON.parse(http<%=rid%>.responseText);
-                            document.getElementById("reportSummary<%=rid%>").innerHTML = jsonToTable(summary);
-                        }
-                    }
-                    http<%=rid%>.send(null);
-                }, <%=refreshPeriodMs%>);
-
-                <% for (var j in reports[i].charts) { %>
-                <% var chart = reports[i].charts[j]; %>
+            if(navigator.appName == "Microsoft Internet Explorer") { http = new ActiveXObject("Microsoft.XMLHTTP"); } else { http = new XMLHttpRequest(); }
+            <% reports.forEach(function(report) { %>
+                <% for (var j in report.charts) { %>
+                <% var chart = report.charts[j]; %>
                 <% var id = chart.uid; %>
                         graph<%=id%> = new Dygraph(
                             document.getElementById("chart<%=id%>"),
@@ -87,14 +74,25 @@ REPORT_SUMMARY_TEMPLATE
                              labelsSeparateLines: true,
                              labels: <%=JSON.stringify(chart.columns)%>
                             });
-                        if(navigator.appName == "Microsoft Internet Explorer") { http<%=id%> = new ActiveXObject("Microsoft.XMLHTTP"); } else { http<%=id%> = new XMLHttpRequest(); }
-                        setInterval(function() {
-                            http<%=id%>.open("GET", "/data/<%=querystring.escape(reports[i].name)%>/<%=querystring.escape(chart.name)%>");
-                            http<%=id%>.onreadystatechange=function() { if(http<%=id%>.readyState == 4) { graph<%=id%>.updateOptions({"file": JSON.parse(http<%=id%>.responseText)});}};
-                            http<%=id%>.send(null);
-                        }, <%=refreshPeriodMs%>);
                 <% } %>
-            <% } %>
+            <% }); %>
+            setInterval(function() {
+                http.open("GET", "/reports");
+                http.onreadystatechange=function() { 
+                    if (http.readyState == 4 && http.status == 200) {
+                        document.getElementById("timestamp").innerHTML = new Date();
+                        reports = JSON.parse(http.responseText);
+                        reports.forEach(function(report) {
+                            document.getElementById("reportSummary" + report.uid).innerHTML = jsonToTable(report.summary);
+                            for (var j in report.charts) {
+                                var chart = report.charts[j];
+                                this["graph" + chart.uid].updateOptions({"file": report.charts[j].rows});
+                            }
+                        });
+                    }
+                }
+                http.send(null);
+            }, <%=refreshPeriodMs%>);
         </script>
 
         <div id="footer"><p>generated with <a href="http://github.com/benschmaus/nodeload">nodeload</a></p></div>

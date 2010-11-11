@@ -1,3 +1,4 @@
 results*.html
 *.tpl.js
+.reporting.test-output.html
 tmp

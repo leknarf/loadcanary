@@ -22,7 +22,7 @@
         "nl": "./lib/nl.js"
     },
     "modules": {
-        "job": "./lib/job",
+        "loop": "./lib/loop",
         "stats": "./lib/stats",
         "monitoring": "./lib/monitoring",
         "http": "./lib/http",
@@ -30,6 +30,7 @@
         "remote": "./lib/remote"
     },
     "scripts": {
+        "test": "expresso",
         "preinstall": "make clean compile"
     },
     "dependencies": {

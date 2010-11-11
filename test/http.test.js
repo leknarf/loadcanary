@@ -1,14 +1,15 @@
 var http = require('http'),
-    nlhttp = require('../lib/http'),
+    nlhttp = require('../lib/http').quiet(),
     HTTP_SERVER = nlhttp.HTTP_SERVER;
+
+HTTP_SERVER.start();
+setTimeout(function() { HTTP_SERVER.stop(); }, 1500);
 
 module.exports = {
     'example: add a new route': function(assert, beforeExit) {
         var done = false;
-        HTTP_SERVER.start();
         HTTP_SERVER.on('^/route', function() {
             done = true;
-            HTTP_SERVER.stop();
         });
 
         var client = http.createClient(8000, '127.0.0.1'),
@@ -21,7 +22,6 @@ module.exports = {
     },
     'test file server finds package.json': function(assert, beforeExit) {
         var done = false;
-        HTTP_SERVER.start();
         var client = http.createClient(8000, '127.0.0.1'),
             req = client.request('GET', '/package.json');
         req.end();
@@ -29,7 +29,6 @@ module.exports = {
             assert.equal(res.statusCode, 200);
             res.on('data', function(chunk) {
                 done = true;
-                HTTP_SERVER.stop();
             });
         });
 

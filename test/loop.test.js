@@ -23,7 +23,7 @@ module.exports = {
         beforeExit(function() {
             assert.equal(i, 5, 'loop executed incorrect number of times');
             assert.ok(!l.running, 'loop still flagged as running');
-            assert.ok(Math.abs(duration - 1000) < 30, '1000 == ' + duration);
+            assert.ok(Math.abs(duration - 1000) <= 50, '1000 == ' + duration);
         });
     },
     'test numberOfTimes loop': function(assert, beforeExit) {
