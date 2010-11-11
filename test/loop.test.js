@@ -8,7 +8,7 @@ module.exports = {
             l = Loop.create({
                 fun: function(loopFun) { 
                     var now = new Date();
-                    assert.ok(Math.abs(now - lasttime) < 205, (now - lasttime).toString());
+                    assert.ok(Math.abs(now - lasttime) < 210, (now - lasttime).toString());
                     lasttime = now;
 
                     i++;

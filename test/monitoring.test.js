@@ -58,12 +58,12 @@ module.exports = {
         }
         
         beforeExit(function() {
-            var trSummary = m.stats['transaction'] && m.stats['transaction']['runtime'] && m.stats['transaction']['runtime'].summary();
-            var opSummary = m.stats['operation'] && m.stats['operation']['runtime'] && m.stats['operation']['runtime'].summary();
-            assert.ok(trSummary);
-            assert.ok(opSummary);
-            assert.ok(Math.abs(trSummary.median - 100) <= 5, '100 == ' + trSummary.median);
-            assert.ok(Math.abs(opSummary.median - 25) <= 5);
+            var summary = m.interval.summary();
+            assert.ok(summary);
+            assert.ok(summary['transaction'] && summary['transaction']['runtime']);
+            assert.ok(summary['operation'] && summary['operation']['runtime']);
+            assert.ok(Math.abs(summary['transaction']['runtime'].median - 100) <= 5, '100 == ' + summary['transaction']['runtime'].median);
+            assert.ok(Math.abs(summary['operation']['runtime'].median - 25) <= 5);
         });
     },
     'example: use EventEmitter objects instead of interacting with MonitorSet directly': function(assert, beforeExit) {
