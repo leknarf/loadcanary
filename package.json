@@ -30,8 +30,7 @@
         "remote": "./lib/remote"
     },
     "scripts": {
-        "preinstall": "make clean compile",
-        "test": "make test"
+        "preinstall": "make clean compile"
     },
     "dependencies": {
     }

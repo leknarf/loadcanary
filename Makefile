@@ -5,6 +5,7 @@ SOURCES = lib/header.js lib/*.tpl.js lib/utils.js lib/config.js lib/testapi.js l
 all: compile
 
 clean:
+	rm -rf ./lib-cov
 	rm -f ./lib/nodeload.js ./lib/*.tpl.js
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
 
