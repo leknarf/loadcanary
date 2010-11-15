@@ -1,6 +1,7 @@
 /*jslint sub:true */
 
-var reporting = require('../lib/reporting').disableServer(),
+var nlconfig = require('../lib/config').disableServer(),
+    reporting = require('../lib/reporting'),
     monitoring = require('../lib/monitoring'),
     REPORT_MANAGER = reporting.REPORT_MANAGER;
 
