@@ -6,13 +6,13 @@ module.exports = {
     'example: a basic rps loop with set duration': function(assert, beforeExit) {
         var i = 0, start = new Date(), lasttime = start, duration,
             l = Loop.create({
-                fun: function(loopFun) { 
+                fun: function(finished) { 
                     var now = new Date();
                     assert.ok(Math.abs(now - lasttime) < 210, (now - lasttime).toString());
                     lasttime = now;
 
                     i++;
-                    loopFun(); 
+                    finished(); 
                 },
                 rps: 5, // times per second (every 200ms)
                 duration: 1 // second
@@ -29,7 +29,7 @@ module.exports = {
     'test numberOfTimes loop': function(assert, beforeExit) {
         var i = 0,
             l = Loop.create({
-                fun: function(loopFun) { i++; loopFun(); },
+                fun: function(finished) { i++; finished(); },
                 rps: 5,
                 numberOfTimes: 3
             }).start();
@@ -41,7 +41,7 @@ module.exports = {
     'test emits start and stop events': function(assert, beforeExit) {
         var started, ended, 
             l = Loop.create({
-                fun: function(loopFun) { loopFun(); },
+                fun: function(finished) { finished(); },
                 rps: 10,
                 numberOfTimes: 3
             }).start();
@@ -58,7 +58,7 @@ module.exports = {
     'test concurrency': function(assert, beforeExit) {
         var i = 0, start = new Date(), duration, s = new Scheduler();
         s.schedule({
-            fun: function(loopFun) { i++; loopFun(); },
+            fun: function(finished) { i++; finished(); },
             rps: 10,
             duration: 1,
             concurrency: 5
@@ -76,7 +76,7 @@ module.exports = {
     'scheduler emits events': function(assert, beforeExit) {
         var s = new Scheduler(), started = false, ended = false;
         s.schedule({
-            fun: function(loopFun) { loopFun(); },
+            fun: function(finished) { finished(); },
             numberOfTimes: 3
         }).startAll();
     
@@ -91,12 +91,12 @@ module.exports = {
     'test mixed monitored and unmonitored loops': function(assert, beforeExit) {
         var s = new Scheduler();
         s.schedule({
-            fun: function(loopFun) { loopFun(); },
+            fun: function(finished) { finished(); },
             numberOfTimes: 50,
             concurrency: 5
         });
         s.schedule({
-            fun: function(loopFun) { loopFun(); },
+            fun: function(finished) { finished(); },
             rps: 1,
             monitored: false
         });
@@ -113,7 +113,7 @@ module.exports = {
     'test all unmonitored loops': function(assert, beforeExit) {
         var s = new Scheduler(), ended = false;
         s.schedule({
-            fun: function(loopFun) { loopFun(); },
+            fun: function(finished) { finished(); },
             rps: 2,
             concurrency: 2,
             monitored: false

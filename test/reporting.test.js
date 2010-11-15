@@ -1,12 +1,13 @@
 /*jslint sub:true */
 
-var reporting = require('../lib/reporting').disableServer(),
+var nlconfig = require('../lib/config').disableServer(),
+    reporting = require('../lib/reporting'),
     monitoring = require('../lib/monitoring'),
     REPORT_MANAGER = reporting.REPORT_MANAGER;
 
 REPORT_MANAGER.refreshIntervalMs = 500;
-REPORT_MANAGER.startLogger('.reporting.test-output.html');
-setTimeout(function() { REPORT_MANAGER.stopLogger(); }, 1000);
+REPORT_MANAGER.setLogFile('.reporting.test-output.html');
+setTimeout(function() { REPORT_MANAGER.setLoggingEnabled(false); }, 1000);
 
 function mockConnection(callback) {
     var conn = { 
@@ -43,10 +44,10 @@ module.exports = {
         assert.isNotNull(html.match('graph'+chart2.uid+' = new Dygraph'));
         assert.isNotNull(html.match('id="reportSummary'+report.uid));
     },
-    'example: update reports from Monitor and MonitorSet stats': function(assert, beforeExit) {
-        var m = new monitoring.MonitorSet('runtime')
-                        .init('transaction', 'operation')
-                        .updateEvery(200),
+    'example: update reports from Monitor and MonitorGroup stats': function(assert, beforeExit) {
+        var m = new monitoring.MonitorGroup('runtime')
+                        .initMonitors('transaction', 'operation')
+                        .setUpdateIntervalMs(200),
             f = function() {
                 var trmon = m.start('transaction');
                 mockConnection(function(conn) {
@@ -58,7 +59,7 @@ module.exports = {
                 });
             };
         
-        REPORT_MANAGER.addReport('All Monitors').updateFromMonitorSet(m);
+        REPORT_MANAGER.addReport('All Monitors').updateFromMonitorGroup(m);
         REPORT_MANAGER.addReport('Transaction').updateFromMonitor(m.monitors['transaction']);
         REPORT_MANAGER.addReport('Operation').updateFromMonitor(m.monitors['operation']);
     
@@ -67,7 +68,7 @@ module.exports = {
         }
     
         // Disable 'update' events after 500ms so that this test can complete
-        setTimeout(function() { m.disableUpdates(); }, 510);
+        setTimeout(function() { m.setUpdateIntervalMs(0); }, 510);
         
         beforeExit(function() {
             var trReport = REPORT_MANAGER.reports.filter(function(r) { return r.name === 'Transaction'; })[0];

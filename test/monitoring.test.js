@@ -5,7 +5,7 @@ var http = require('http'),
     util = require('../lib/util'),
     monitoring = require('../lib/monitoring'),
     Monitor = monitoring.Monitor,
-    MonitorSet = monitoring.MonitorSet;
+    MonitorGroup = monitoring.MonitorGroup;
 
 function mockConnection(callback) {
     var conn = { 
@@ -20,11 +20,8 @@ module.exports = {
     'example: track runtime of a function': function(assert, beforeExit) {
         var m = new Monitor('runtime'),
             f = function() {
-                var mon = m.start(), runtime = Math.floor(Math.random() * 100);
-                setTimeout(
-                    function() { mon.end(); }, 
-                    runtime
-                );
+                var ctx = m.start(), runtime = Math.floor(Math.random() * 100);
+                setTimeout(function() { ctx.end(); }, runtime);
             };
 
         for (var i = 0; i < 20; i++) { 
@@ -40,15 +37,15 @@ module.exports = {
             assert.ok(summary.median > 0 && summary.median < 100);
         });
     },
-    'example: use a MonitorSet to organize multiple Monitors': function(assert, beforeExit) {
-        var m = new MonitorSet('runtime'),
+    'example: use a MonitorGroup to organize multiple Monitors': function(assert, beforeExit) {
+        var m = new MonitorGroup('runtime'),
             f = function() {
-                var trmon = m.start('transaction');
+                var transactionCtx = m.start('transaction');
                 mockConnection(function(conn) {
-                    var opmon = m.start('operation');
+                    var operationCtx = m.start('operation');
                     conn.operation(function() {
-                        opmon.end();
-                        trmon.end();
+                        operationCtx.end();
+                        transactionCtx.end();
                     });
                 });
             };
@@ -66,7 +63,7 @@ module.exports = {
             assert.ok(Math.abs(summary['operation']['runtime'].median - 25) <= 5);
         });
     },
-    'example: use EventEmitter objects instead of interacting with MonitorSet directly': function(assert, beforeExit) {
+    'example: use EventEmitter objects instead of interacting with MonitorGroup directly': function(assert, beforeExit) {
         function MonitoredObject() {
             EventEmitter.call(this);
             var self = this;
@@ -83,10 +80,10 @@ module.exports = {
         }
         util.inherits(MonitoredObject, EventEmitter);
 
-        var m = new MonitorSet('runtime');
+        var m = new MonitorGroup('runtime');
         for (var i = 0; i < 5; i++) {
             var obj = new MonitoredObject();
-            m.monitor(obj);
+            m.monitorObjects(obj);
             setTimeout(obj.run, i * 100);
         }
         
@@ -114,7 +111,7 @@ module.exports = {
         var m = new Monitor('runtime');
         for (var i = 0; i < 5; i++) {
             var obj = new MonitoredObject();
-            m.monitor(obj);
+            m.monitorObjects(obj);
             setTimeout(obj.run, i * 100);
         }
         
@@ -132,7 +129,7 @@ module.exports = {
             m = new Monitor('result-codes', 'uniques', 'request-bytes', 'response-bytes'),
             client = http.createClient(80, 'www.google.com'),
             f = function() {
-                var mon = m.start(),
+                var ctx = m.start(),
                     path = '/search?q=' + q++,
                     req = client.request(
                         'GET', 
@@ -142,7 +139,7 @@ module.exports = {
                 req.path = path;
                 req.end();
                 req.on('response', function(res) {
-                    mon.end({req: req, res: res});
+                    ctx.end({req: req, res: res});
                 });
             };
 
@@ -176,11 +173,11 @@ module.exports = {
         });
     },
     'monitor generates update events with interval and overall stats': function(assert, beforeExit) {
-        var m = new Monitor('runtime').updateEvery(220),
+        var m = new Monitor('runtime').setUpdateIntervalMs(220),
             intervals = 0,
             f = function() {
-                var mon = m.start(), runtime = Math.floor(Math.random() * 10);
-                setTimeout(function() { mon.end(); }, runtime);
+                var ctx = m.start(), runtime = Math.floor(Math.random() * 10);
+                setTimeout(function() { ctx.end(); }, runtime);
             };
         
         // Call to f every 100ms for a total runtime >500ms
@@ -189,7 +186,7 @@ module.exports = {
         }
         
         // Disable 'update' events after 500ms so that this test can complete
-        setTimeout(function() { m.disableUpdates(); }, 510);
+        setTimeout(function() { m.setUpdateIntervalMs(0); }, 510);
 
         m.on('update', function(interval, overall) { 
             assert.strictEqual(overall, m.stats);

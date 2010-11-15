@@ -1,5 +1,6 @@
 var http = require('http'),
-    nlhttp = require('../lib/http').quiet(),
+    nlconfig = require('../lib/config').quiet(),
+    nlhttp = require('../lib/http'),
     HTTP_SERVER = nlhttp.HTTP_SERVER;
 
 HTTP_SERVER.start();
@@ -8,7 +9,7 @@ setTimeout(function() { HTTP_SERVER.stop(); }, 1500);
 module.exports = {
     'example: add a new route': function(assert, beforeExit) {
         var done = false;
-        HTTP_SERVER.on('^/route', function() {
+        HTTP_SERVER.addRoute('^/route', function() {
             done = true;
         });
 
