@@ -90,7 +90,7 @@ module.exports = {
             assert.ok(Math.abs(duration - 1000) < 30, '1000 == ' + duration);
         });
     },
-    'LoopGroup emits events': function(assert, beforeExit) {
+    'MultiLoop emits events': function(assert, beforeExit) {
         var started = false, ended = false,
             l = new MultiLoop({
                 fun: function(finished) { finished(); },

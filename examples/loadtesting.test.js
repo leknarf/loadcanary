@@ -57,6 +57,7 @@ var i = 0,
 loadtest.udpateInterval = 2000;
 loadtest.on('end', function() {
     loadtest = nl.run(cleanup);
+    loadtest.keepAlive = true;
     loadtest.on('end', function() {
         console.log('Closing test server.');
         svr.close();
