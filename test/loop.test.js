@@ -1,11 +1,11 @@
 var loop = require('../lib/loop'),
     Loop = loop.Loop,
-    Scheduler = loop.Scheduler;
+    MultiLoop = loop.MultiLoop;
 
 module.exports = {
     'example: a basic rps loop with set duration': function(assert, beforeExit) {
         var i = 0, start = new Date(), lasttime = start, duration,
-            l = Loop.create({
+            l = loop.create({
                 fun: function(finished) { 
                     var now = new Date();
                     assert.ok(Math.abs(now - lasttime) < 210, (now - lasttime).toString());
@@ -21,14 +21,31 @@ module.exports = {
         l.on('end', function() { duration = new Date() - start; });
         
         beforeExit(function() {
-            assert.equal(i, 5, 'loop executed incorrect number of times');
+            assert.equal(i, 5, 'loop executed incorrect number of times: ' + i);
             assert.ok(!l.running, 'loop still flagged as running');
             assert.ok(Math.abs(duration - 1000) <= 50, '1000 == ' + duration);
         });
     },
+    'example: use Scheduler to vary execution rate and concurrency': function (assert, beforeExit) {
+        var i = 0, c = 0, start = new Date(), duration, 
+            l = new MultiLoop({
+                fun: function(finished) { i++; finished(); },
+                rpsProfile: [[2,10], [3,0]],
+                concurrencyProfile: [[1,5], [2,10]],
+                duration: 3.5
+            }).start();
+        
+        l.on('end', function() { duration = new Date() - start; });
+    
+        beforeExit(function() {
+            assert.equal(i, 15, 'loop executed incorrect number of times: ' + i);
+            assert.ok(l.loops.every(function(l) { return !l.running; }), 'loops still flagged as running');
+            assert.ok(Math.abs(duration - 3500) < 500, '3500 == ' + duration);
+        });
+    },
     'test numberOfTimes loop': function(assert, beforeExit) {
         var i = 0,
-            l = Loop.create({
+            l = loop.create({
                 fun: function(finished) { i++; finished(); },
                 rps: 5,
                 numberOfTimes: 3
@@ -40,7 +57,7 @@ module.exports = {
     },
     'test emits start and stop events': function(assert, beforeExit) {
         var started, ended, 
-            l = Loop.create({
+            l = loop.create({
                 fun: function(finished) { finished(); },
                 rps: 10,
                 numberOfTimes: 3
@@ -56,78 +73,57 @@ module.exports = {
     },
     
     'test concurrency': function(assert, beforeExit) {
-        var i = 0, start = new Date(), duration, s = new Scheduler();
-        s.schedule({
-            fun: function(finished) { i++; finished(); },
-            rps: 10,
-            duration: 1,
-            concurrency: 5
-        }).startAll();
+        var i = 0, start = new Date(), duration,
+            l = new MultiLoop({
+                fun: function(finished) { i++; finished(); },
+                rps: 10,
+                duration: 1,
+                concurrency: 5
+            }).start();
         
-        s.on('end', function() { duration = new Date() - start; });
+        l.on('end', function() { duration = new Date() - start; });
     
-        assert.equal(s.loops.length, 5);
+        assert.equal(l.loops.length, 5);
         beforeExit(function() {
             assert.equal(i, 10, 'loop executed incorrect number of times');
-            assert.ok(s.loops.every(function(l){ return !l.running; }), 'loops still flagged as running');
+            assert.ok(l.loops.every(function(l){ return !l.running; }), 'loops still flagged as running');
             assert.ok(Math.abs(duration - 1000) < 30, '1000 == ' + duration);
         });
     },
-    'scheduler emits events': function(assert, beforeExit) {
-        var s = new Scheduler(), started = false, ended = false;
-        s.schedule({
-            fun: function(finished) { finished(); },
-            numberOfTimes: 3
-        }).startAll();
+    'LoopGroup emits events': function(assert, beforeExit) {
+        var started = false, ended = false,
+            l = new MultiLoop({
+                fun: function(finished) { finished(); },
+                numberOfTimes: 3
+            }).start();
     
-        s.on('start', function() { started = true; });
-        s.on('end', function() { ended = true; });
+        l.on('start', function() { started = true; });
+        l.on('end', function() { ended = true; });
     
         beforeExit(function() {
             assert.ok(started, 'start never emitted');
             assert.ok(ended, 'end never emitted');
         });
     },
-    'test mixed monitored and unmonitored loops': function(assert, beforeExit) {
-        var s = new Scheduler();
-        s.schedule({
-            fun: function(finished) { finished(); },
-            numberOfTimes: 50,
-            concurrency: 5
-        });
-        s.schedule({
-            fun: function(finished) { finished(); },
-            rps: 1,
-            monitored: false
-        });
-        s.startAll();
-    
-        var unmonitoredLoops = s.loops.filter(function(l) { return !l.monitored; });
-        assert.equal(s.loops.length, 6);
-        assert.equal(unmonitoredLoops.length, 1);
-        assert.ok(s.loops.every(function(l){ return l.running; }), 'not all loops started');
+    'change loop rate': function(assert, beforeExit) {
+        var i = 0, start = new Date(), duration,
+            l = loop.create({
+                fun: function(finished) { 
+                    i++;
+                    finished(); 
+                },
+                rps: 5,
+                duration: 2
+            }).start();
+        
+        l.on('end', function() { duration = new Date() - start; });
+        setTimeout(function() { l.fun.rps = 10; }, 1000);
+        setTimeout(function() { l.fun.rps = 20; }, 1500);
+        
         beforeExit(function() {
-            assert.ok(s.loops.every(function(l){ return !l.running; }), 'loops still flagged as running');
+            assert.equal(i, 20, 'loop executed incorrect number of times: ' + i); // 5+10/2+20/2 == 20
+            assert.ok(!l.running, 'loop still flagged as running');
+            assert.ok(Math.abs(duration - 2000) <= 50, '2000 == ' + duration);
         });
     },
-    'test all unmonitored loops': function(assert, beforeExit) {
-        var s = new Scheduler(), ended = false;
-        s.schedule({
-            fun: function(finished) { finished(); },
-            rps: 2,
-            concurrency: 2,
-            monitored: false
-        });
-        s.startAll();
-        s.on('end', function() { ended = true; });
-    
-        var unmonitoredLoops = s.loops.filter(function(l) { return !l.monitored; });
-        assert.equal(s.loops.length, unmonitoredLoops.length);
-        
-        s.loops.forEach(function(l) { l.stop(); });
-
-        beforeExit(function() {
-            assert.ok(ended, 'scheduler never finished');
-        });
-    }
 };

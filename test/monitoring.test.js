@@ -142,43 +142,45 @@ module.exports = {
                     ctx.end({req: req, res: res});
                 });
             };
-
+    
         client.on('error', function(e) { assert.fail('This test requires internet connectivity: ' + e); });
-
+    
         for (var i = 0; i < 2; i++) {
             f();
         }
-
+    
         beforeExit(function() {
             var resultCodesSummary = m.stats['result-codes'] && m.stats['result-codes'].summary(),
                 uniquesSummary = m.stats['uniques'] && m.stats['uniques'].summary(),
                 requestBytesSummary = m.stats['request-bytes'] && m.stats['request-bytes'].summary(),
                 responseBytesSummary = m.stats['response-bytes'] && m.stats['response-bytes'].summary();
-
+    
             assert.ok(resultCodesSummary);
             assert.ok(uniquesSummary);
             assert.ok(requestBytesSummary);
             assert.ok(responseBytesSummary);
                 
             assert.equal(resultCodesSummary.total, 2);
-            assert.ok(resultCodesSummary.rps >= 1);
+            assert.ok(resultCodesSummary.rps >= 0);
             assert.equal(resultCodesSummary['200'], 2);
             
             assert.equal(uniquesSummary.total, 2);
             assert.equal(uniquesSummary.uniqs, 2);
-
+    
             assert.equal(requestBytesSummary.total, 0);
-
+    
             assert.ok(responseBytesSummary.total > 1000);
         });
     },
     'monitor generates update events with interval and overall stats': function(assert, beforeExit) {
-        var m = new Monitor('runtime').setUpdateIntervalMs(220),
+        var m = new Monitor('runtime'),
             intervals = 0,
             f = function() {
                 var ctx = m.start(), runtime = Math.floor(Math.random() * 10);
                 setTimeout(function() { ctx.end(); }, runtime);
             };
+        
+        m.updateInterval = 220;
         
         // Call to f every 100ms for a total runtime >500ms
         for (var i = 1; i <= 5; i++) {
@@ -186,7 +188,7 @@ module.exports = {
         }
         
         // Disable 'update' events after 500ms so that this test can complete
-        setTimeout(function() { m.setUpdateIntervalMs(0); }, 510);
+        setTimeout(function() { m.updateInterval = 0; }, 510);
 
         m.on('update', function(interval, overall) { 
             assert.strictEqual(overall, m.stats);

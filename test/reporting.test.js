@@ -46,8 +46,7 @@ module.exports = {
     },
     'example: update reports from Monitor and MonitorGroup stats': function(assert, beforeExit) {
         var m = new monitoring.MonitorGroup('runtime')
-                        .initMonitors('transaction', 'operation')
-                        .setUpdateIntervalMs(200),
+                        .initMonitors('transaction', 'operation'),
             f = function() {
                 var trmon = m.start('transaction');
                 mockConnection(function(conn) {
@@ -58,6 +57,8 @@ module.exports = {
                     });
                 });
             };
+            
+        m.updateInterval = 200;
         
         REPORT_MANAGER.addReport('All Monitors').updateFromMonitorGroup(m);
         REPORT_MANAGER.addReport('Transaction').updateFromMonitor(m.monitors['transaction']);
@@ -68,7 +69,7 @@ module.exports = {
         }
     
         // Disable 'update' events after 500ms so that this test can complete
-        setTimeout(function() { m.setUpdateIntervalMs(0); }, 510);
+        setTimeout(function() { m.updateInterval = 0; }, 510);
         
         beforeExit(function() {
             var trReport = REPORT_MANAGER.reports.filter(function(r) { return r.name === 'Transaction'; })[0];
