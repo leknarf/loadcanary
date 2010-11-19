@@ -167,7 +167,7 @@ module.exports = {
             assert.equal(uniquesSummary.total, 2);
             assert.equal(uniquesSummary.uniqs, 2);
     
-            assert.equal(requestBytesSummary.total, 0);
+            assert.ok(requestBytesSummary.total > 0);
     
             assert.ok(responseBytesSummary.total > 1000);
         });

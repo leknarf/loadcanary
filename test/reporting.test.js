@@ -38,11 +38,9 @@ module.exports = {
         };
         
         var html = REPORT_MANAGER.getHtml();
-        assert.isNotNull(html.match('id="chart'+chart1.uid));
-        assert.isNotNull(html.match('id="chart'+chart2.uid));
-        assert.isNotNull(html.match('graph'+chart1.uid+' = new Dygraph'));
-        assert.isNotNull(html.match('graph'+chart2.uid+' = new Dygraph'));
-        assert.isNotNull(html.match('id="reportSummary'+report.uid));
+        assert.isNotNull(html.match('name":"'+chart1.name));
+        assert.isNotNull(html.match('name":"'+chart2.name));
+        assert.isNotNull(html.match('summary":'));
     },
     'example: update reports from Monitor and MonitorGroup stats': function(assert, beforeExit) {
         var m = new monitoring.MonitorGroup('runtime')
