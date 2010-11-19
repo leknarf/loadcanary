@@ -46,15 +46,15 @@
                 </div>
             </div>
         </div>
-        <p style="display:none" id="raw"></p>
         <div id="footer"><p>generated with <a href="http://github.com/benschmaus/nodeload">nodeload</a></p></div>
     </body>
 
     <script id="source" language="javascript" type="text/javascript">
+        var raw_reports;
         function update(reports) {
             var main = document.getElementById("main"), summaries = document.getElementById("summaries");
             document.getElementById("timestamp").innerHTML = new Date();
-            document.getElementById("raw").innerHTML = JSON.stringify(reports);
+            raw_reports = reports;
             reports.forEach(function(report) {
                 
                 var summary = document.getElementById("reportSummary" + report.uid);
