@@ -33,68 +33,81 @@
     </head>
 
     <body>
-        <div id="header"><h1>Test Results</h1><p id="timestamp"><%=new Date()%></p></div>
+        <div id="header">
+            <h1>Test Results</h1>
+            <p id="timestamp"><%=new Date()%></p>
+        </div>
         <div id="page">
-            <div id="main">
-                <% reports.forEach(function(report) { %>
-                <% for (var j in report.charts) { %>
-                <% var chart = report.charts[j]; %>
-                    <div class="post"><h2><%=report.name%>: <%=chart.name%></h2>
-                        <div class="entry" style="width:100%;float:left">
-                            <div id="chart<%=chart.uid%>" style="float:left;width:660px;height:200px;"></div>
-                            <div id="chart<%=chart.uid%>legend" style="float:left;width:80px;height:200px;"></div>
-                        </div>
-                    </div>
-                <% } %>
-                <% }); %>
-            </div>
+            <div id="main"></div>
             <div id="sidebar">
-                <div class="post"><h2>Cumulative</h2><div class="entry">
-                    <% reports.forEach(function(report) { %>
-                        <p class="statsTable" id="reportSummary<%=report.uid%>"/></p>
-                        <script language="javascript" type="text/javascript">
-                            document.getElementById("reportSummary<%=report.uid%>").innerHTML = jsonToTable(<%=JSON.stringify(report.summary)%>);
-                        </script>
-                    <% }); %>
-                </div></div>
+                <div class="post">
+                    <h2>Cumulative</h2>
+                    <div id="summaries" class="entry"></div>
+                </div>
             </div>
-        </div></div>
-        
-        
-        <script id="source" language="javascript" type="text/javascript">
-            if(navigator.appName == "Microsoft Internet Explorer") { http = new ActiveXObject("Microsoft.XMLHTTP"); } else { http = new XMLHttpRequest(); }
-            <% reports.forEach(function(report) { %>
-                <% for (var j in report.charts) { %>
-                <% var chart = report.charts[j]; %>
-                <% var id = chart.uid; %>
-                        graph<%=id%> = new Dygraph(
-                            document.getElementById("chart<%=id%>"),
-                            <%=JSON.stringify(chart.rows)%>,
-                            {labelsDiv: document.getElementById("chart<%=id%>legend"),
-                             labelsSeparateLines: true,
-                             labels: <%=JSON.stringify(chart.columns)%>
-                            });
-                <% } %>
-            <% }); %>
-            setInterval(function() {
-                http.open("GET", "/reports");
-                http.onreadystatechange=function() { 
-                    if (http.readyState == 4 && http.status == 200) {
-                        document.getElementById("timestamp").innerHTML = new Date();
-                        reports = JSON.parse(http.responseText);
-                        reports.forEach(function(report) {
-                            document.getElementById("reportSummary" + report.uid).innerHTML = jsonToTable(report.summary);
-                            for (var j in report.charts) {
-                                var chart = report.charts[j];
-                                this["graph" + chart.uid].updateOptions({"file": report.charts[j].rows});
-                            }
-                        });
-                    }
-                }
-                http.send(null);
-            }, <%=refreshPeriodMs%>);
-        </script>
-
+        </div>
+        <p style="display:none" id="raw"></p>
         <div id="footer"><p>generated with <a href="http://github.com/benschmaus/nodeload">nodeload</a></p></div>
     </body>
+
+    <script id="source" language="javascript" type="text/javascript">
+        function update(reports) {
+            var main = document.getElementById("main"), summaries = document.getElementById("summaries");
+            document.getElementById("timestamp").innerHTML = new Date();
+            document.getElementById("raw").innerHTML = JSON.stringify(reports);
+            reports.forEach(function(report) {
+                
+                var summary = document.getElementById("reportSummary" + report.uid);
+                if (!summary) {
+                    var summary = document.createElement("p");
+                    summary.setAttribute("id", "reportSummary" + report.uid);
+                    summary.setAttribute("class", "statsTable");
+                    summaries.appendChild(summary);
+                }
+                summary.innerHTML = jsonToTable(report.summary);
+                
+                for (var j in report.charts) {
+                    var chart = report.charts[j];
+
+                    if (graphs[chart.uid]) {
+                        graphs[chart.uid].updateOptions({"file": chart.rows, labels: chart.columns});
+                    } else {
+                        var newchart = document.createElement("div");
+                        newchart.setAttribute("class", "post");
+                        newchart.innerHTML = [].concat(
+                            '<h2>', report.name, ': ', chart.name, '</h2>',
+                            '<div class="entry" style="width:100%;float:left">',
+                                '<div id="chart', chart.uid, '" style="float:left;width:660px;height:200px;"></div>',
+                                '<div id="chartlegend', chart.uid, '" style="float:left;width:80px;height:200px;"></div>',
+                            '</div>'
+                        ).join('');
+                        main.appendChild(newchart);
+                        graphs[chart.uid] = new Dygraph(
+                            document.getElementById("chart" + chart.uid),
+                            chart.rows,
+                            {
+                                labelsDiv: document.getElementById("chartlegend" + chart.uid),
+                                labelsSeparateLines: true,
+                                labels: chart.columns
+                            });
+                    }
+                }
+            });
+        }
+
+        if(navigator.appName == "Microsoft Internet Explorer") { http = new ActiveXObject("Microsoft.XMLHTTP"); } else { http = new XMLHttpRequest(); }
+
+        setInterval(function() {
+            http.open("GET", "/reports");
+            http.onreadystatechange=function() { 
+                if (http.readyState == 4 && http.status == 200) {
+                    update(JSON.parse(http.responseText));
+                }
+            }
+            http.send(null);
+        }, <%=refreshPeriodMs%>);
+        
+        graphs = {};
+        update(<%=JSON.stringify(reports)%>);
+    </script>
 </html>

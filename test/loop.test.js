@@ -5,7 +5,7 @@ var loop = require('../lib/loop'),
 module.exports = {
     'example: a basic rps loop with set duration': function(assert, beforeExit) {
         var i = 0, start = new Date(), lasttime = start, duration,
-            l = loop.create({
+            l = new Loop({
                 fun: function(finished) { 
                     var now = new Date();
                     assert.ok(Math.abs(now - lasttime) < 210, (now - lasttime).toString());
@@ -45,7 +45,7 @@ module.exports = {
     },
     'test numberOfTimes loop': function(assert, beforeExit) {
         var i = 0,
-            l = loop.create({
+            l = new Loop({
                 fun: function(finished) { i++; finished(); },
                 rps: 5,
                 numberOfTimes: 3
@@ -57,7 +57,7 @@ module.exports = {
     },
     'test emits start and stop events': function(assert, beforeExit) {
         var started, ended, 
-            l = loop.create({
+            l = new Loop({
                 fun: function(finished) { finished(); },
                 rps: 10,
                 numberOfTimes: 3
@@ -107,7 +107,7 @@ module.exports = {
     },
     'change loop rate': function(assert, beforeExit) {
         var i = 0, start = new Date(), duration,
-            l = loop.create({
+            l = new Loop({
                 fun: function(finished) { 
                     i++;
                     finished(); 
@@ -117,8 +117,8 @@ module.exports = {
             }).start();
         
         l.on('end', function() { duration = new Date() - start; });
-        setTimeout(function() { l.fun.rps = 10; }, 1000);
-        setTimeout(function() { l.fun.rps = 20; }, 1500);
+        setTimeout(function() { l.rps = 10; }, 1000);
+        setTimeout(function() { l.rps = 20; }, 1500);
         
         beforeExit(function() {
             assert.equal(i, 20, 'loop executed incorrect number of times: ' + i); // 5+10/2+20/2 == 20
@@ -126,4 +126,29 @@ module.exports = {
             assert.ok(Math.abs(duration - 2000) <= 50, '2000 == ' + duration);
         });
     },
+    'test MultiLoop.getProfileValue_ works': function(assert) {
+        var getProfileValue = loop.MultiLoop.prototype.getProfileValue_;
+        assert.equal(getProfileValue(null, 10), 0);
+        assert.equal(getProfileValue(null, 10), 0);
+        assert.equal(getProfileValue([], 10), 0);
+
+        assert.equal(getProfileValue([[0,0]], 0), 0);
+        assert.equal(getProfileValue([[0,10]], 0), 10);
+        assert.equal(getProfileValue([[0,0],[10,0]], 5), 0);
+        assert.equal(getProfileValue([[0,0],[10,100]], 5), 50);
+        assert.equal(getProfileValue([[0,0],[11,100]], 5), 45);
+
+        var profile = [[0,0],[10,100],[15,100],[22,500],[30,500],[32,0]];
+        assert.equal(getProfileValue(profile, -1), 0);
+        assert.equal(getProfileValue(profile, 0), 0);
+        assert.equal(getProfileValue(profile, 1), 10);
+        assert.equal(getProfileValue(profile, 1.5), 15);
+        assert.equal(getProfileValue(profile, 10), 100);
+        assert.equal(getProfileValue(profile, 14), 100);
+        assert.equal(getProfileValue(profile, 21), 442);
+        assert.equal(getProfileValue(profile, 30), 500);
+        assert.equal(getProfileValue(profile, 31), 250);
+        assert.equal(getProfileValue(profile, 32), 0);
+        assert.equal(getProfileValue(profile, 35), 0);
+    }
 };
