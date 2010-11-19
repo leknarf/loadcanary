@@ -1,6 +1,6 @@
 .PHONY: clean templates compile
 PROCESS_TPL = scripts/process_tpl.js
-SOURCES = lib/header.js lib/*.tpl.js lib/utils.js lib/config.js lib/testapi.js lib/job.js lib/monitoring.js lib/remote.js lib/stats.js lib/log.js lib/reporting.js lib/http.js lib/template.js
+SOURCES = lib/header.js lib/*.tpl.js lib/template.js lib/config.js lib/util.js lib/stats.js lib/loop/loop.js lib/loop/multiloop.js lib/monitoring/collectors.js lib/monitoring/monitor.js lib/monitoring/statslogger.js lib/monitoring/monitorgroup.js lib/http.js lib/reporting.js lib/loadtesting.js
 
 all: compile
 
