@@ -17,8 +17,8 @@
     },
     "main": "./lib/nodeload",
     "bin": {
-        "nodeload": "./lib/nodeload.js",
-        "nl": "./lib/nl.js"
+        "nodeload.js": "./lib/nodeload.js",
+        "nl.js": "./nl.js"
     },
     "modules": {
         "loop": "./lib/loop",
@@ -31,6 +31,9 @@
     "scripts": {
         "test": "expresso",
         "preinstall": "make clean compile"
+    },
+    "devDependencies": {
+        "expresso": ">=0.6.4"
     },
     "dependencies": {
     }
