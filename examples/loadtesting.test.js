@@ -3,7 +3,7 @@
 /*jslint sub:true */
 
 var http = require('http'),
-    nl = require('../lib/loadtesting');
+    nl = require('../lib/nodeload');
 
 var svr = http.createServer(function (req, res) {
     res.writeHead((Math.random() < 0.8) ? 200 : 404, {'Content-Type': 'text/plain'});
@@ -54,10 +54,9 @@ var i = 0,
     },
     loadtest = nl.run(readtest, writetest);
 
-loadtest.udpateInterval = 2000;
+loadtest.updateInterval = 1000;
 loadtest.on('end', function() {
     loadtest = nl.run(cleanup);
-    loadtest.keepAlive = true;
     loadtest.on('end', function() {
         console.log('Closing test server.');
         svr.close();
