@@ -7,6 +7,13 @@ var http = require('http'),
     Monitor = monitoring.Monitor,
     MonitorGroup = monitoring.MonitorGroup;
 
+var svr = http.createServer(function (req, res) {
+    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.end(req.url);
+});
+svr.listen(9000);
+setTimeout(function() { svr.close(); }, 1000);
+
 function mockConnection(callback) {
     var conn = { 
         operation: function(opcallback) { 
@@ -127,23 +134,17 @@ module.exports = {
     'HTTP specific monitors': function(assert, beforeExit) {
         var q = 0,
             m = new Monitor('result-codes', 'uniques', 'request-bytes', 'response-bytes'),
-            client = http.createClient(80, 'www.google.com'),
+            client = http.createClient(9000, 'localhost'),
             f = function() {
                 var ctx = m.start(),
                     path = '/search?q=' + q++,
-                    req = client.request(
-                        'GET', 
-                        path,
-                        {'host': 'www.google.com'}
-                    );
+                    req = client.request('GET', path, {'host': 'localhost'});
                 req.path = path;
                 req.end();
                 req.on('response', function(res) {
                     ctx.end({req: req, res: res});
                 });
             };
-    
-        client.on('error', function(e) { assert.fail('This test requires internet connectivity: ' + e); });
     
         for (var i = 0; i < 2; i++) {
             f();
@@ -169,7 +170,7 @@ module.exports = {
     
             assert.ok(requestBytesSummary.total > 0);
     
-            assert.ok(responseBytesSummary.total > 1000);
+            assert.ok(responseBytesSummary.total > 20);
         });
     },
     'monitor generates update events with interval and overall stats': function(assert, beforeExit) {
