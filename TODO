@@ -1,5 +1,3 @@
-- Real build system
-- Proper node.js packaging with npm
 - Fix remote.js: 
     - MASTER/SLAVE controllers (handle tests) + RemoteWorkerPool/RemoteWorker (pings)
     - multiple TEST_MONITOR.on('...') on slaves across tests 
@@ -7,5 +5,8 @@
 - Use git submodules
 - Console webpage (stats)
 - Console webpage (node manager)
-- Unit testing with a framework
+- Write sample reporting app that monitors cpu, mem, disk io read + write + wait
+- Better handling for failed http connections (net.Stream.connect currently calls destroy if there's an error)
+- Update READMEs
 - Write a DEVELOPERS doc that explains the components
+- Add an error log
