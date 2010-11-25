@@ -45,6 +45,16 @@ cluster.on('init', function() {
     cluster.on('done', function() {
         console.log('All slaves done');
     });
+    cluster.on('slaveError', function(slave, err) {
+        if (err === null) {
+            console.log('Unresponsive slave detected: ' + slave.id);
+        } else {
+            console.log('Slave error from ' + slave.id + ': ' + err.toString());
+            if (cluster.state === 'stopping') {
+                process.exit(1);
+            }
+        }
+    });
     cluster.on('slaveState', function(slave, state) {
         if (state === 'error') {
             console.log('Slave "' + slave.id + '" encountered an error.');
