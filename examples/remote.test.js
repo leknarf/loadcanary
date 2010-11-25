@@ -31,16 +31,13 @@ var cluster = new Cluster({
     }
 });
 
-HTTP_SERVER.on('start', function() {
-    cluster.on('end', function(slaves) {
-        console.log('All slaves finished: ' + 
-            JSON.stringify(
-                slaves.map(function(s) {
-                    return s.id + ': ' + s.result;
-                })));
-    });
+cluster.on('init', function() {
     cluster.on('start', function() {
         cluster.exec('ls -alh && sleep 3');
+    });
+    cluster.on('end', function(slaves) {
+        console.log('All slaves terminated.');
+        process.exit(0);
     });
     cluster.on('running', function() {
         console.log('All slaves running');
@@ -54,4 +51,8 @@ HTTP_SERVER.on('start', function() {
         }
     });
     cluster.start();
+});
+
+process.on('SIGINT', function() {
+    cluster.end();
 });
