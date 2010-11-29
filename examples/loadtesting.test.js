@@ -60,5 +60,6 @@ loadtest.on('end', function() {
     loadtest.on('end', function() {
         console.log('Closing test server.');
         svr.close();
+        process.exit(0);
     });
 });
