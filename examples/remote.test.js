@@ -15,6 +15,9 @@ var cluster = new Cluster({
         hosts: ['localhost:8001'],
         setup: function(master) {
             this.exec = require("child_process").exec;
+            master.on('error', function(err) {
+                console.log('Error communicating with master: ' + err.toString());
+            });
         },
         exec: function(master, cmd) {
             var self = this;
