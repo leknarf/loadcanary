@@ -1,6 +1,6 @@
 - Console webpage (stats)
 - Console webpage (node manager)
-- Write sample reporting app that monitors cpu, mem, disk io read + write + wait
+- Add mem, disk io read + write + wait monitoring remote.ex.js
 - Update READMEs
 - Write a DEVELOPERS doc that explains the components
 - Add zipf number generator
