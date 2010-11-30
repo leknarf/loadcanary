@@ -41,14 +41,11 @@ var i = 0,
             return request;
         }
     },
-    cluster = new nl.LoadTestCluster('localhost:8000', ['localhost:8001', 'localhost:8002']);
+    cluster = new nl.LoadTestCluster('localhost:8000', ['localhost:8002', 'localhost:8001']);
 
 // Start the cluster
 cluster.run(readtest, writetest);
-cluster.on('done', function() {
+cluster.on('end', function() {
     console.log('All tests complete.');
-    cluster.destroy();
-    cluster.on('end', function() {
-        process.exit(0);
-    });
+    process.exit(0);
 });
