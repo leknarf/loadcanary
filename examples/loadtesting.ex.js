@@ -3,7 +3,7 @@
 /*jslint sub:true */
 
 var http = require('http'),
-    nl = require('../lib/nodeload');
+    nl = require('../nodeload');
 
 var svr = http.createServer(function (req, res) {
     res.writeHead((Math.random() < 0.8) ? 200 : 404, {'Content-Type': 'text/plain'});

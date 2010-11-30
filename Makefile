@@ -6,7 +6,7 @@ all: compile
 
 clean:
 	rm -rf ./lib-cov
-	rm -f ./lib/nodeload.js ./lib/*.tpl.js
+	rm -f ./nodeload.js ./lib/*.tpl.js
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
 
 templates:
@@ -14,6 +14,6 @@ templates:
 	$(PROCESS_TPL) DYGRAPH_SOURCE lib/dygraph.tpl > lib/dygraph.tpl.js
 
 compile: templates
-	echo "#!/usr/bin/env node" > ./lib/nodeload.js
-	cat $(SOURCES) | ./scripts/jsmin.js >> ./lib/nodeload.js
-	chmod +x ./lib/nodeload.js
+	echo "#!/usr/bin/env node" > ./nodeload.js
+	cat $(SOURCES) | ./scripts/jsmin.js >> ./nodeload.js
+	chmod +x ./nodeload.js

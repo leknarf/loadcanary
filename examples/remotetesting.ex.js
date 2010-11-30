@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 var http = require('http'),
-    nl = require('../lib/nodeload');
+    nl = require('../nodeload');
 
 // Start a local HTTP server that we can load test
 var svr = http.createServer(function (req, res) {

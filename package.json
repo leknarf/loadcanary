@@ -10,14 +10,15 @@
         "Benjamin Schmaus <benjamin.schmaus@gmail.com>",
         "Jonathan Lee <jonjlee@gmail.com>",
         "Robert Newson <robert.newson@gmail.com>",
+        "Michael Mattozzi <mike.mattozzi@gmail.com>"
     ],
     "repository": {
         "type": "git", 
         "url": "http://github.com/benschmaus/nodeload"
     },
-    "main": "./lib/nodeload",
+    "main": "./nodeload.js",
     "bin": {
-        "nodeload.js": "./lib/nodeload.js",
+        "nodeload.js": "./nodeload.js",
         "nl.js": "./nl.js"
     },
     "modules": {
