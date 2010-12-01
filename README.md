@@ -1,31 +1,33 @@
 INSTALLING
 ================
 
-Using [npm](http://npmjs.org/):
+Make sure [node.js](http://nodejs.org/#download) is installed. Then install `nodeload`:
 
-    curl http://npmjs.org/install.sh | sh       # install npm if not already installed
-    npm install nodeload
+1. Using [npm](http://npmjs.org/):
 
-From source:
+        curl http://npmjs.org/install.sh | sh       # install npm if not already installed
+        npm install nodeload
 
-    git clone git://github.com/benschmaus/nodeload.git
-    cd nodeload
-    npm link    # optional. enables require('nodeload/<module>') instead of require('./lib/<module>').
+2. From source:
 
-Or as a single file (this does not install the `nl.js` tool):
+        git clone git://github.com/benschmaus/nodeload.git
+        cd nodeload
+        npm link    # optional. enables require('nodeload/<module>') instead of require('./lib/<module>').
 
-    wget https://github.com/benschmaus/nodeload/raw/master/nodeload.js
+3. Or as a single file (this does not install the `nl.js` tool):
+
+        wget https://github.com/benschmaus/nodeload/raw/master/nodeload.js
 
 NODELOAD
 ================
 
-`nodeload` is collection of [node.js](http://nodejs.org/) modules for load testing HTTP services.
+`nodeload` is collection of independent [node.js](http://nodejs.org/) modules for load testing HTTP services.
 
-As a developer, you should be able write load tests and get informative reports without having to learn another framework. You should be able to build tests by example and selectively use the parts of the tool that fit your task. Being a library means that you can use as much or as little of `nodeload` as makes sense, and you can create load tests with the power of a full programming language. For example, if you need to execute some function at a given rate, just use the [`'nodeload/loop'`](https://github.com/benschmaus/nodeload/tree/master/doc/loop.md) module, and write the rest yourself.
+As a developer, you should be able write load tests and get informative reports without having to learn another framework. You should be able to build by example and selectively use the parts of a tool that fit your task. Being a library means that you can use as much or as little of `nodeload` as makes sense, and you can create load tests with the power of a full programming language. For example, if you need to execute some function at a given rate, just use the [`'nodeload/loop'`](https://github.com/benschmaus/nodeload/tree/master/doc/loop.md) module, and write the rest yourself.
 
 In addition, `nodeload` is built for operability. It can always be deployed by simply copying the single file, `nodeload.js`.
 
-Here are examples of each module, which can be used separately. Look for more examples in the [`examples/`](https://github.com/benschmaus/nodeload/tree/master/examples) directory and in test cases prefixed with "example" in [`test/`](https://github.com/benschmaus/nodeload/tree/master/test):
+Look for examples in the [`examples/`](https://github.com/benschmaus/nodeload/tree/master/examples) directory and in test cases prefixed with "example" in [`test/`](https://github.com/benschmaus/nodeload/tree/master/test). Here are simple examples of each module:
 
 ### [nl](https://github.com/benschmaus/nodeload/tree/master/doc/nl.md)
 
@@ -38,7 +40,7 @@ will send 10,000 queries to http://localhost:9000 using 10 connections. Statisti
 
 ### [nodeload](https://github.com/benschmaus/nodeload/tree/master/doc/nodeload.md)
 
-The `nodeload` module is the primary interface for creating load tests. It includes all of the other modules described below, so if you `require('nodeload')`, you don't need to `require()` any of the other ones. Look at the examples in [`examples/loadtesting.ex.js`](https://github.com/benschmaus/nodeload/tree/master/examples/loadtesting.ex.js) and [`examples/riaktest.ex.js`]((https://github.com/benschmaus/nodeload/tree/master/examples/riaktest.ex.js) or read the [nodeload module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/nodeload.md).
+The `nodeload` module is the primary interface for creating load tests. It includes all the other modules described below, so if you `require('nodeload')`, you don't need to `require()` any of the other ones. Look at the examples in [`examples/loadtesting.ex.js`](https://github.com/benschmaus/nodeload/tree/master/examples/loadtesting.ex.js) and [`examples/riaktest.ex.js`](https://github.com/benschmaus/nodeload/tree/master/examples/riaktest.ex.js) or read the [nodeload module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/nodeload.md).
 
     var nl = require('nodeload');
     var loadtest = nl.run({
@@ -56,7 +58,7 @@ The `nodeload` module is the primary interface for creating load tests. It inclu
 
 ### [remote](https://github.com/benschmaus/nodeload/tree/master/doc/remote.md)
 
-The `remote` module provides a mechanism for running a distributed load test. See the [remote module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/remote.md).
+The `remote` module provides a mechanism for running a distributed load test. See [`examples/remotetesting.ex.js`](https://github.com/benschmaus/nodeload/tree/master/examples/remotetesting.ex.js) and [`examples/remote.ex.js`](https://github.com/benschmaus/nodeload/tree/master/examples/remote.ex.js) for examples or read the [remote module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/remote.md).
 
 Start slave instances:
 
@@ -94,7 +96,7 @@ will output "`Mean: 0.852, 99%: 3`".
 
 ### [monitoring](https://github.com/benschmaus/nodeload/tree/master/doc/monitoring.md)
 
-The `monitoring` module provides a way to track runtime statistics for code that is run concurrently. See the [monitoring module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/monitoring.md).
+The `monitoring` module provides a way to track runtime statistics for code that is run concurrently. See [`test/monitoring.test.js`](https://github.com/benschmaus/nodeload/tree/master/test/monitoring.test.js) for examples or read the [monitoring module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/monitoring.md).
 
     var monitoring = require('nodeload/monitoring');
     var monitor = new monitoring.Monitor('runtime');
@@ -111,22 +113,26 @@ will output "`Median runtime (ms): 497`".
 
 ### [reporting](https://github.com/benschmaus/nodeload/tree/master/doc/reporting.md)
 
-The `reporting` module provides a way to produce HTML graphs from code. See the [reporting module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/reporting.md).
+The `reporting` module provides a way to graph values over time and present it in a auto-updating HTML page. See [`test/reporting.test.js`](https://github.com/benschmaus/nodeload/tree/master/test/reporting.test.js) for examples or read the [reporting module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/reporting.md).
 
-    var reporting = require('nodeload/reporting'), stats = require('nodeload/stats'),
+    var reporting = require('nodeload/reporting'), 
+        stats = require('nodeload/stats'),
         report = reporting.REPORT_MANAGER.addReport('Random Numbers'),
         chart = report.getChart('Gaussian / Pareto vs. Time (minutes)');
-    for (var i = 0; i < 10; i++) {
+    for (var timeout = 0; timeout < 5000; timeout+=500) {
         setTimeout(function() {
-                chart.put({'Pareto': stats.nextPareto(0, 100), 'Gaussian': stats.nextGaussian()});
-            }, i * 500);
+                chart.put({
+                    'Pareto': stats.nextPareto(0, 100),
+                    'Gaussian': stats.nextGaussian()
+                });
+            }, timeout);
     }
 
 will display a graph on http://localhost:8000/ and save it to an HTML file in the local directory.
 
 ### [loop](https://github.com/benschmaus/nodeload/tree/master/doc/loop.md)
 
-The `loop` module provides a way to execute a function at a set rate and concurrency. See [`test/loop.test.js`](https://github.com/benschmaus/nodeload/tree/master/test/loop.test.js) for examples and read the [loop module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/loop.md) for details.
+The `loop` module provides a way to execute a function at a set rate and concurrency. See [`test/loop.test.js`](https://github.com/benschmaus/nodeload/tree/master/test/loop.test.js) for examples or read the [loop module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/loop.md) for details.
 
     var http = require('http'),
         loop = require('nodeload/loop'),
@@ -148,7 +154,7 @@ will output "`Total requests: 30`".
 
 ### [http](https://github.com/benschmaus/nodeload/tree/master/doc/http.md)
 
-The `http` module provides a generic HTTP server that serves static files and that can be configured with new routes. See the [http module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/http.md).
+The `http` module provides a generic HTTP server that serves static files and that can be configured with new routes. See [`test/http.test.js`](https://github.com/benschmaus/nodeload/tree/master/test/http.test.js) for examples or read the [http module documentation](https://github.com/benschmaus/nodeload/tree/master/doc/http.md).
 
     var http = require('nodeload/http');
     var server = new http.HttpServer().start(10000);
@@ -162,4 +168,4 @@ The `http` module provides a generic HTTP server that serves static files and th
 
 CONTRIBUTING
 ================
-Contributions are always welcome. File bugs on [github](https://github.com/benschmaus/nodeload/issues), email any of the authors, and fork away! [developers.md](https://github.com/benschmaus/nodeload/tree/master/doc/developers.md) has brief instructions on getting tests up and running, and will hold more design details in the future.
+File bugs on [github](https://github.com/benschmaus/nodeload/issues), email any of the authors, and fork away. [doc/developers.md](https://github.com/benschmaus/nodeload/tree/master/doc/developers.md) has brief instructions on getting tests up and running, and will hold more design details in the future. Contributions are always welcome.
