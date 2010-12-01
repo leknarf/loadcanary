@@ -26,15 +26,18 @@
 */
 
 /*jslint sub:true */
+/*globals __dirname */
 
-var options = require('./lib/options');
+require.paths.unshift(__dirname);
+
+var options = require('./lib/nl/options');
 options.process();
 
 if (!options.get('url')) {
     options.help();
 }
 
-var nl = require('./lib/nodeload')
+var nl = require('./nodeload')
             .quiet()
             .setMonitorIntervalMs(options.get('reportInterval') * 1000);
 

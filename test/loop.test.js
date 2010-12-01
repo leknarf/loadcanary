@@ -23,7 +23,7 @@ module.exports = {
         beforeExit(function() {
             assert.equal(i, 5, 'loop executed incorrect number of times: ' + i);
             assert.ok(!l.running, 'loop still flagged as running');
-            assert.ok(Math.abs(duration - 1000) <= 50, '1000 == ' + duration);
+            assert.ok(Math.abs(duration - 1000) <= 60, '1000 == ' + duration);
         });
     },
     'example: use Scheduler to vary execution rate and concurrency': function (assert, beforeExit) {

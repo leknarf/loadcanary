@@ -22,9 +22,7 @@ var i = 0,
         userProfile: [[0,0], [20, 10]],
         stats: ['result-codes', {name: 'latency', percentiles: [0.95, 0.999]}, 'concurrency', 'uniques', 'request-bytes', 'response-bytes'],
         requestGenerator: function(client) {
-            var request = client.request('GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
-            request.end();
-            return request;
+            return client.request('GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
         }
     },
     writetest = {
