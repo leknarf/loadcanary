@@ -2,6 +2,7 @@
 - Console webpage (node manager)
 - Add mem, disk io read + write + wait monitoring remote.ex.js
 - Remote testing should also aggregate summary-only stats (e.g. uniques)
+- Use stats.StatsGroup in monitoring and remote
 - Update READMEs
 - Write a DEVELOPERS doc that explains the components
 - Add zipf number generator
