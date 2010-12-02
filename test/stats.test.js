@@ -1,7 +1,8 @@
-var stats = require('../lib/stats');
+var assert = require('assert'),
+    stats = require('../lib/stats');
 
 module.exports = {
-    'StatsGroup functions are non-enumerable': function(assert, beforeExit) {
+    'StatsGroup functions are non-enumerable': function(beforeExit) {
         var s = new stats.StatsGroup();
         s.latency = {};
         assert.ok(s.get);
@@ -14,7 +15,7 @@ module.exports = {
             }
         }
     },
-    'test StatsGroup methods': function(assert, beforeExit) {
+    'test StatsGroup methods': function(beforeExit) {
         var s = new stats.StatsGroup();
         s.latency = new stats.Histogram();
         s.results = new stats.ResultsCounter();

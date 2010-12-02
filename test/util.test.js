@@ -1,8 +1,9 @@
-var http = require('http'),
+var assert = require('assert'),
+    http = require('http'),
     util = require('../lib/util');
 
 module.exports = {
-    'ReconnectingClient tolerates connection failures': function(assert, beforeExit) {
+    'ReconnectingClient tolerates connection failures': function(beforeExit) {
         var PORT = 9010, 
             simpleResponse = function (req, res) { res.writeHead(200); res.end(); },
             svr = http.createServer(simpleResponse),

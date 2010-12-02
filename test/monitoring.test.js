@@ -1,6 +1,7 @@
 /*jslint sub:true */
 
-var http = require('http'),
+var assert = require('assert'),
+    http = require('http'),
     EventEmitter = require('events').EventEmitter,
     util = require('../lib/util'),
     monitoring = require('../lib/monitoring'),
@@ -24,7 +25,7 @@ function mockConnection(callback) {
 }
 
 module.exports = {
-    'example: track runtime of a function': function(assert, beforeExit) {
+    'example: track runtime of a function': function(beforeExit) {
         var m = new Monitor('runtime'),
             f = function() {
                 var ctx = m.start(), runtime = Math.floor(Math.random() * 100);
@@ -44,7 +45,7 @@ module.exports = {
             assert.ok(summary.median > 0 && summary.median < 100);
         });
     },
-    'example: use a MonitorGroup to organize multiple Monitors': function(assert, beforeExit) {
+    'example: use a MonitorGroup to organize multiple Monitors': function(beforeExit) {
         var m = new MonitorGroup('runtime'),
             f = function() {
                 var transactionCtx = m.start('transaction');
@@ -70,7 +71,7 @@ module.exports = {
             assert.ok(Math.abs(summary['operation']['runtime'].median - 25) <= 5);
         });
     },
-    'example: use EventEmitter objects instead of interacting with MonitorGroup directly': function(assert, beforeExit) {
+    'example: use EventEmitter objects instead of interacting with MonitorGroup directly': function(beforeExit) {
         function MonitoredObject() {
             EventEmitter.call(this);
             var self = this;
@@ -104,7 +105,7 @@ module.exports = {
             assert.ok(Math.abs(opSummary.median - 25) <= 5, '25 == ' + opSummary.median);
         });
     },
-    'use EventEmitter objects with Monitor': function(assert, beforeExit) {
+    'use EventEmitter objects with Monitor': function(beforeExit) {
         function MonitoredObject() {
             EventEmitter.call(this);
             var self = this;
@@ -131,7 +132,7 @@ module.exports = {
             assert.ok(summary.median > 0 && summary.median < 100, summary.median.toString());
         });
     },
-    'HTTP specific monitors': function(assert, beforeExit) {
+    'HTTP specific monitors': function(beforeExit) {
         var q = 0,
             m = new Monitor('result-codes', 'uniques', 'request-bytes', 'response-bytes'),
             client = http.createClient(9000, 'localhost'),
@@ -173,7 +174,7 @@ module.exports = {
             assert.ok(responseBytesSummary.total > 20);
         });
     },
-    'monitor generates update events with interval and overall stats': function(assert, beforeExit) {
+    'monitor generates update events with interval and overall stats': function(beforeExit) {
         var m = new Monitor('runtime'),
             intervals = 0,
             f = function() {

@@ -1,6 +1,7 @@
 /*jslint sub:true */
 
-var nlconfig = require('../lib/config').disableServer(),
+var assert = require('assert'),
+    nlconfig = require('../lib/config').disableServer(),
     reporting = require('../lib/reporting'),
     monitoring = require('../lib/monitoring'),
     REPORT_MANAGER = reporting.REPORT_MANAGER;
@@ -19,7 +20,7 @@ function mockConnection(callback) {
 }
 
 module.exports = {
-    'example: add a chart to test summary webpage': function(assert, beforeExit) {
+    'example: add a chart to test summary webpage': function(beforeExit) {
         var report = REPORT_MANAGER.addReport('My Report'),
             chart1 = report.getChart('Chart 1'),
             chart2 = report.getChart('Chart 2');
@@ -42,7 +43,7 @@ module.exports = {
         assert.isNotNull(html.match('name":"'+chart2.name));
         assert.isNotNull(html.match('summary":'));
     },
-    'example: update reports from Monitor and MonitorGroup stats': function(assert, beforeExit) {
+    'example: update reports from Monitor and MonitorGroup stats': function(beforeExit) {
         var m = new monitoring.MonitorGroup('runtime')
                         .initMonitors('transaction', 'operation'),
             f = function() {

@@ -1,11 +1,12 @@
-var http = require('http'),
+var assert = require('assert'),
+    http = require('http'),
     remote = require('../lib/remote'),
     nlconfig = require('../lib/config').disableServer(),
     HttpServer = require('../lib/http').HttpServer,
     Cluster = remote.Cluster;
 
 module.exports = {
-    'basic end-to-end cluster test': function(assert, beforeExit) {
+    'basic end-to-end cluster test': function(beforeExit) {
         var testTimeout, cluster,
             masterSetupCalled, slaveSetupCalled = [], slaveFunCalled = [],
             master = new HttpServer().start(9030), 

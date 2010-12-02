@@ -34,7 +34,7 @@
         "preinstall": "make clean compile"
     },
     "devDependencies": {
-        "expresso": ">=0.6.4"
+        "expresso": ">=0.7.0"
     },
     "dependencies": {
     }
