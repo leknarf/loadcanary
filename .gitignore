@@ -1,4 +1,5 @@
 results*.log
 results*.html
-src/*.tpl.js
+*.tpl.js
+.reporting.test-output.html
 tmp

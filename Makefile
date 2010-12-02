@@ -1,17 +1,19 @@
 .PHONY: clean templates compile
-SOURCES = src/header.js src/utils.js src/config.js src/api.js src/evloops.js src/scheduler.js src/monitor.js src/remote.js src/stats.js src/statsmgr.js src/log.js src/report.js src/http.js src/summary.tpl.js deps/dygraph.js deps/template.js
+PROCESS_TPL = scripts/process_tpl.js
+SOURCES = lib/header.js lib/config.js lib/util.js lib/stats.js lib/loop/loop.js lib/loop/multiloop.js lib/monitoring/collectors.js lib/monitoring/statslogger.js lib/monitoring/monitor.js lib/monitoring/monitorgroup.js lib/http.js lib/reporting/*.tpl.js lib/reporting/template.js lib/reporting/index.js lib/loadtesting.js lib/remote/endpoint.js lib/remote/endpointclient.js lib/remote/slave.js lib/remote/slaves.js lib/remote/slavenode.js lib/remote/cluster.js lib/remote/httphandler.js lib/remote/remotetesting.js
 
 all: compile
 
 clean:
-	rm -rf ./lib
+	rm -rf ./lib-cov
+	rm -f ./nodeload.js ./lib/reporting/*.tpl.js
 	rm -f results-*-err.log results-*-stats.log results-*-summary.html
-	rm -r src/summary.tpl.js
 
 templates:
-	echo "var `head -n1 src/summary.tpl` = '`awk '{ if (NR > 1) { printf \"%s\\\\\\\\n\", $$0 }}' src/summary.tpl`'" > src/summary.tpl.js
+	$(PROCESS_TPL) REPORT_SUMMARY_TEMPLATE lib/reporting/summary.tpl > lib/reporting/summary.tpl.js
+	$(PROCESS_TPL) DYGRAPH_SOURCE lib/reporting/dygraph.tpl > lib/reporting/dygraph.tpl.js
 
 compile: templates
-	mkdir -p ./lib
-	cat $(SOURCES) | ./deps/jsmin.js > ./lib/nodeloadlib.js
-	cp src/options.js src/nodeload.js lib/
+	echo "#!/usr/bin/env node" > ./nodeload.js
+	cat $(SOURCES) | ./scripts/jsmin.js >> ./nodeload.js
+	chmod +x ./nodeload.js

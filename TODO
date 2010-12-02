@@ -1,10 +1,3 @@
-- Real build system
-- Proper node.js packaging with npm
-- Fix remote.js: 
-    - MASTER/SLAVE controllers (handle tests) + RemoteWorkerPool/RemoteWorker (pings)
-    - multiple TEST_MONITOR.on('...') on slaves across tests 
-    - master can't handle multiple test runs
-- Use git submodules
 - Console
     - Update charts & summary on real data
     - Update test spec on real data
@@ -18,5 +11,11 @@
     - Edit test spec and "restart" (stop existing jobs / start updated test)
     - Clean up removed nodes properly
     - Download data as csv
-- Unit testing with a framework
+- Console webpage (stats)
+- Console webpage (node manager)
+- Add mem, disk io read + write + wait monitoring remote.ex.js
+- Remote testing should also aggregate summary-only stats (e.g. uniques)
+- Use stats.StatsGroup in monitoring and remote
+- Update READMEs
 - Write a DEVELOPERS doc that explains the components
+- Add zipf number generator

@@ -1,0 +1,41 @@
+{
+    "name": "nodeload",
+    "version": "0.2.0",
+    "description": "Load testing library for node.js",
+    "url": "https://github.com/benschmaus/nodeload",
+    "engines": { 
+        "node": ">=0.3.0" 
+    },
+    "contributors": [
+        "Benjamin Schmaus <benjamin.schmaus@gmail.com>",
+        "Jonathan Lee <jonjlee@gmail.com>",
+        "Robert Newson <robert.newson@gmail.com>",
+        "Michael Mattozzi <mike.mattozzi@gmail.com>"
+    ],
+    "repository": {
+        "type": "git", 
+        "url": "http://github.com/benschmaus/nodeload"
+    },
+    "main": "./nodeload.js",
+    "bin": {
+        "nodeload.js": "./nodeload.js",
+        "nl.js": "./nl.js"
+    },
+    "modules": {
+        "loop": "./lib/loop",
+        "stats": "./lib/stats",
+        "monitoring": "./lib/monitoring",
+        "http": "./lib/http",
+        "reporting": "./lib/reporting",
+        "remote": "./lib/remote"
+    },
+    "scripts": {
+        "test": "expresso",
+        "preinstall": "make clean compile"
+    },
+    "devDependencies": {
+        "expresso": ">=0.6.4"
+    },
+    "dependencies": {
+    }
+}
