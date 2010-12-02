@@ -129,10 +129,10 @@ Profiles can be used to adjust the load and number of users (concurrency) during
 
 ### Other options:
 
-The global HTTP server will automatically shutdown after `run(...)` finishes and emits the `'end'` event. This allows the process to terminate after the load test finishes if nothing else is running. To keep the server running, set stayAlive:
+The global HTTP server will automatically shutdown after `run(...)` finishes and emits the `'end'` event. This allows the process to terminate after the load test finishes if nothing else is running. To keep the server running, set keepAlive:
 
     var loadtest = nl.run(...);
-    loadtest.stayAlive = true;
+    loadtest.keepAlive = true;
 
 ### Test Definition:
 
