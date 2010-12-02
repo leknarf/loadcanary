@@ -1,5 +1,6 @@
 // UI builders and event handlers
 // ----------------------------------
+/*globals window document $ */
 
 // ---------------
 // UI creation
@@ -224,7 +225,7 @@ function refreshReportGraphs(node) {
     for (var i in reports) {
         // Add tabs for any new reports
         var reportId = getIdFromString(i),
-            tab = getTabForReport(node, i, reportId);
+            tab = getTabForReport(node, reports[i].name, reportId);
 
         // Add charts from report
         var charts = reports[i].charts;

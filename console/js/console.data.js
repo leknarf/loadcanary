@@ -40,7 +40,7 @@ function getTests(nodeId) {
 }
 function refreshReportsData(node) {
     if (!node) return;
-    $.getJSON('http://' + node.name + '/data/', function(data, status) {
+    $.getJSON('http://' + node.name + '/reports', function(data, status) {
         if (data) node.reports = data;
     });
 }
