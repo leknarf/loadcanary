@@ -1,3 +1,15 @@
+- Console
+    - Update test spec on real data
+    - Adding a master node should add its slaves
+    - Really "add" a node (ping and connect to it)
+    - Running / stopped indicators for each node 
+    - Start & stop any node
+    - Fire up nodeload on a new machine
+    - Send a test script to run on any node
+    - Interactive console for each node 
+    - Edit test spec and "restart" (stop existing jobs / start updated test)
+    - Clean up removed nodes properly
+    - Download data as csv
 - Console webpage (stats)
 - Console webpage (node manager)
 - Add mem, disk io read + write + wait monitoring remote.ex.js
