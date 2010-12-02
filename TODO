@@ -1,5 +1,4 @@
 - Console
-    - Update charts & summary on real data
     - Update test spec on real data
     - Adding a master node should add its slaves
     - Really "add" a node (ping and connect to it)
