@@ -22,6 +22,7 @@
         "nl.js": "./nl.js"
     },
     "modules": {
+        "config": "./lib/config",
         "loop": "./lib/loop",
         "stats": "./lib/stats",
         "monitoring": "./lib/monitoring",
