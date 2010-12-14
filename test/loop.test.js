@@ -151,5 +151,60 @@ module.exports = {
         assert.equal(getProfileValue(profile, 31), 250);
         assert.equal(getProfileValue(profile, 32), 0);
         assert.equal(getProfileValue(profile, 35), 0);
+    },
+    'test MultiLoop.getProfileTimeToNextValue_ works': function() {
+        var getProfileTimeToNextValue = loop.MultiLoop.prototype.getProfileTimeToNextValue_;
+        assert.equal(getProfileTimeToNextValue(null, 10), Infinity);
+        assert.equal(getProfileTimeToNextValue([], 10), Infinity);
+
+        assert.equal(getProfileTimeToNextValue([[0,10]], 0), Infinity);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,0]], 0), 10);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,100]], 0), 1);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,0]], 4), 6);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,5]], 4), 2);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,5]], 4.5), 2); // should round up to nearest whole number
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,5]], 5), 1);
+        assert.equal(getProfileTimeToNextValue([[0,0],[10,0]], 10), Infinity);
+        
+        var profile = [[0,0],[10,100],[15,100],[22,1],[30,0]];
+        assert.equal(getProfileTimeToNextValue(profile, -1), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 0), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 1), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 1.5), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 10), 5);
+        assert.equal(getProfileTimeToNextValue(profile, 13.5), 2);
+        assert.equal(getProfileTimeToNextValue(profile, 15), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 21), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 22), 8);
+        assert.equal(getProfileTimeToNextValue(profile, 28.5), 2);
+        assert.equal(getProfileTimeToNextValue(profile, 29.5), 1);
+        assert.equal(getProfileTimeToNextValue(profile, 30), Infinity);
+    },
+    'test MultiLoop.getProfileValue_ and MultiLoop.getProfileTimeToNextValue_ coordination': function() {
+        var getProfileValue = loop.MultiLoop.prototype.getProfileValue_;
+        var getProfileTimeToNextValue = loop.MultiLoop.prototype.getProfileTimeToNextValue_;
+        var profile = [[0,0],[10,100],[15,100],[22,500],[30,500],[32,0]];
+        assert.equal(getProfileValue(profile, 0), 0);
+        assert.equal(getProfileTimeToNextValue(profile, 0), 1);
+        assert.equal(getProfileValue(profile, 1), 10);
+        assert.equal(getProfileTimeToNextValue(profile, 1), 1);
+        assert.equal(getProfileValue(profile, 9), 90);
+        assert.equal(getProfileTimeToNextValue(profile, 9), 1);
+        assert.equal(getProfileValue(profile, 10), 100);
+        assert.equal(getProfileTimeToNextValue(profile, 10), 5);
+        assert.equal(getProfileValue(profile, 15), 100);
+        assert.equal(getProfileTimeToNextValue(profile, 15), 1);
+        assert.equal(getProfileValue(profile, 16), 157);
+        assert.equal(getProfileTimeToNextValue(profile, 16), 1);
+        assert.equal(getProfileValue(profile, 21), 442);
+        assert.equal(getProfileTimeToNextValue(profile, 21), 1);
+        assert.equal(getProfileValue(profile, 22), 500);
+        assert.equal(getProfileTimeToNextValue(profile, 22), 8);
+        assert.equal(getProfileValue(profile, 30), 500);
+        assert.equal(getProfileTimeToNextValue(profile, 30), 1);
+        assert.equal(getProfileValue(profile, 31), 250);
+        assert.equal(getProfileTimeToNextValue(profile, 31), 1);
+        assert.equal(getProfileValue(profile, 32), 0);
+        assert.equal(getProfileTimeToNextValue(profile, 32), Infinity);
     }
 };
