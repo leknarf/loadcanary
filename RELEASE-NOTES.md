@@ -1,3 +1,15 @@
+## v0.2.1 (In Progress) ##
+
+Features:
+
+* Add /console/console.html, a jQuery based UI for connecting to multiple nodeload instances simultaneously
+
+Bug Fixes:
+
+* config: Add 'nodeload/config' module for configuring global parameters
+* multiloop: polling time for next change in load or user profiles was always 1 second
+* stats: Fix one-off error in Histogram.percentile wouldn't return the greatest number if it is greater than the number of buckets (i.e. in extra[])
+
 ## v0.2.0 (2010/12/01) ##
 
 This release is a substantial, non-backwards-compatible rewrite of nodeload. The major features are:
