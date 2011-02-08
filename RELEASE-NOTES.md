@@ -4,6 +4,7 @@ Features:
 
 * Add /console/console.html, a jQuery based UI for connecting to multiple nodeload instances simultaneously
 * jmxstat/jmxstat.jar allows command line polling of JMX attributes. Combined with reporting.spawnAndMonitor(), Java processes can be monitored during load tests.
+* Add 'header-code' statistic which counts number of responses with different values for a given header. For instance, this can be used to graph cache misses/hits from Squid responses using the X-Cache header.
 
 Bug Fixes:
 

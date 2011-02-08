@@ -134,7 +134,7 @@ module.exports = {
     },
     'HTTP specific monitors': function(beforeExit) {
         var q = 0,
-            m = new Monitor('result-codes', 'uniques', 'request-bytes', 'response-bytes'),
+            m = new Monitor('result-codes', 'uniques', 'request-bytes', 'response-bytes', {name: 'header-code', header: 'content-type'}),
             client = http.createClient(9000, 'localhost'),
             f = function() {
                 var ctx = m.start(),
@@ -155,7 +155,8 @@ module.exports = {
             var resultCodesSummary = m.stats['result-codes'] && m.stats['result-codes'].summary(),
                 uniquesSummary = m.stats['uniques'] && m.stats['uniques'].summary(),
                 requestBytesSummary = m.stats['request-bytes'] && m.stats['request-bytes'].summary(),
-                responseBytesSummary = m.stats['response-bytes'] && m.stats['response-bytes'].summary();
+                responseBytesSummary = m.stats['response-bytes'] && m.stats['response-bytes'].summary(),
+                headerCodeSummary = m.stats['header-code'] && m.stats['header-code'].summary();
     
             assert.ok(resultCodesSummary);
             assert.ok(uniquesSummary);
@@ -165,6 +166,8 @@ module.exports = {
             assert.equal(resultCodesSummary.total, 2);
             assert.ok(resultCodesSummary.rps >= 0);
             assert.equal(resultCodesSummary['200'], 2);
+
+            assert.equal(headerCodeSummary['text/plain'], 2);
             
             assert.equal(uniquesSummary.total, 2);
             assert.equal(uniquesSummary.uniqs, 2);
