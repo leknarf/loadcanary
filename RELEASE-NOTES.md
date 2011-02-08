@@ -3,6 +3,7 @@
 Features:
 
 * Add /console/console.html, a jQuery based UI for connecting to multiple nodeload instances simultaneously
+* jmxstat/jmxstat.jar allows command line polling of JMX attributes. Combined with reporting.spawnAndMonitor(), Java processes can be monitored during load tests.
 
 Bug Fixes:
 

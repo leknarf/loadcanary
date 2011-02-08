@@ -22,7 +22,7 @@ var i = 0,
         userProfile: [[0,0], [20, 10]],
         stats: ['result-codes', {name: 'latency', percentiles: [0.95, 0.999]}, 'concurrency', 'uniques', 'request-bytes', 'response-bytes'],
         requestGenerator: function(client) {
-            return client.request('GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
+            return client.request('GET', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost', 'connection': 'keep-alive' });
         }
     },
     writetest = {
@@ -34,7 +34,7 @@ var i = 0,
         targetRps: 20,
         stats: ['result-codes', 'latency', 'uniques'],
         requestGenerator: function(client) {
-            var request = client.request('PUT', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost' });
+            var request = client.request('PUT', "/" + Math.floor(Math.random()*8000), { 'host': 'localhost', 'connection': 'keep-alive' });
             request.end('foo');
             return request;
         }
@@ -47,7 +47,7 @@ var i = 0,
         numRequests: 8001,
         stats: ['result-codes'],
         requestGenerator: function(client) {
-            return client.request('DELETE', "/" + i++, { 'host': 'localhost' });
+            return client.request('DELETE', "/" + i++, { 'host': 'localhost', 'connection': 'keep-alive' });
         }
     },
     loadtest = nl.run(readtest, writetest);
