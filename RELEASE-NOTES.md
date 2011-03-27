@@ -11,6 +11,7 @@ Bug Fixes:
 * config: Add 'nodeload/config' module for configuring global parameters
 * multiloop: polling time for next change in load or user profiles was always 1 second
 * stats: Fix one-off error in Histogram.percentile wouldn't return the greatest number if it is greater than the number of buckets (i.e. in extra[])
+* nl.js: #issue/5: nl.js discarded URL query string and hash
 
 ## v0.2.0 (2010/12/01) ##
 
