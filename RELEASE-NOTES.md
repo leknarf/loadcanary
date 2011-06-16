@@ -1,3 +1,7 @@
+## v0.4.0 (2011/06/16) ##
+
+Compatible with node v0.4.x
+
 ## v0.3.0 (2011/06/16) ##
 
 Compatible with node v0.3.x

@@ -211,3 +211,5 @@ module.exports = {
         });
     }
 };
+
+process.setMaxListeners(20);

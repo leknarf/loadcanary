@@ -1,5 +1,5 @@
-results*.log
-results*.html
+results-*
 *.tpl.js
 .reporting.test-output.html
 tmp
+node_modules

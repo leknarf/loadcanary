@@ -1,10 +1,11 @@
 {
     "name": "nodeload",
-    "version": "0.3.0",
+    "version": "0.4.0",
     "description": "Load testing library for node.js",
-    "url": "https://github.com/benschmaus/nodeload",
-    "engines": { 
-        "node": ">=0.3.0 <0.4.0" 
+    "keywords": ["testing", "load testing", "http"],
+    "homepage": "https://github.com/benschmaus/nodeload",
+    "engines": {
+        "node": "0.4"
     },
     "contributors": [
         "Benjamin Schmaus <benjamin.schmaus@gmail.com>",
@@ -12,31 +13,36 @@
         "Robert Newson <robert.newson@gmail.com>",
         "Michael Mattozzi <mike.mattozzi@gmail.com>"
     ],
+    "bugs": {
+        "web" : "https://github.com/benschmaus/nodeload/issues"
+    },
     "repository": {
-        "type": "git", 
-        "url": "http://g  ithub.com/benschmaus/nodeload"
+        "type": "git",
+        "url": "http://github.com/benschmaus/nodeload"
     },
     "main": "./nodeload.js",
     "bin": {
         "nodeload.js": "./nodeload.js",
         "nl.js": "./nl.js"
     },
-    "modules": {
-        "config": "./lib/config",
-        "loop": "./lib/loop",
-        "stats": "./lib/stats",
-        "monitoring": "./lib/monitoring",
-        "http": "./lib/http",
-        "reporting": "./lib/reporting",
-        "remote": "./lib/remote"
+    "directories": {
+        "doc": "./doc",
+        "lib": "./lib",
+        "example": "./examples"
     },
     "scripts": {
         "test": "expresso",
         "preinstall": "make clean compile"
     },
     "devDependencies": {
-        "expresso": ">=0.7.0"
+        "expresso": ">=0.7.7"
     },
     "dependencies": {
-    }
+    },
+    "licenses": [
+        {
+            "type": "MIT",
+            "url": "https://github.com/benschmaus/nodeload/raw/master/LICENSE"
+        }
+    ]
 }
