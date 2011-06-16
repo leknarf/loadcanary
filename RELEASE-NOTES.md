@@ -1,4 +1,6 @@
-## v0.2.1 (In Progress) ##
+## v0.3.0 (2011/06/16) ##
+
+Compatible with node v0.3.x
 
 Features:
 
@@ -10,7 +12,7 @@ Bug Fixes:
 
 * config: Add 'nodeload/config' module for configuring global parameters
 * multiloop: polling time for next change in load or user profiles was always 1 second
-* stats: Fix one-off error in Histogram.percentile wouldn't return the greatest number if it is greater than the number of buckets (i.e. in extra[])
+* stats: Fix one-off error in Histogram.percentile wouldn't return the greatest number if it is greater than the number of buckets (i.e. in extra[]). Fix Uniques.clear() to actually reset count.
 * nl.js: #issue/5: nl.js discarded URL query string and hash
 
 ## v0.2.0 (2010/12/01) ##

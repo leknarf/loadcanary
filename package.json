@@ -4,7 +4,7 @@
     "description": "Load testing library for node.js",
     "url": "https://github.com/benschmaus/nodeload",
     "engines": { 
-        "node": ">=0.3.0" 
+        "node": ">=0.3.0 <0.4.0" 
     },
     "contributors": [
         "Benjamin Schmaus <benjamin.schmaus@gmail.com>",
@@ -14,7 +14,7 @@
     ],
     "repository": {
         "type": "git", 
-        "url": "http://github.com/benschmaus/nodeload"
+        "url": "http://g  ithub.com/benschmaus/nodeload"
     },
     "main": "./nodeload.js",
     "bin": {
