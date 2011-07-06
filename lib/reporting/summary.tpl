@@ -51,9 +51,11 @@
 
     <script id="source" language="javascript" type="text/javascript">
         var raw_reports;
+        function updateDate(date) {
+            document.getElementById("timestamp").innerHTML = date || new Date();
+        }
         function update(reports) {
             var main = document.getElementById("main"), summaries = document.getElementById("summaries");
-            document.getElementById("timestamp").innerHTML = new Date();
             raw_reports = reports;
             reports.forEach(function(report) {
                 
@@ -101,6 +103,7 @@
             http.open("GET", "/reports");
             http.onreadystatechange=function() { 
                 if (http.readyState == 4 && http.status == 200) {
+                    updateDate();
                     update(JSON.parse(http.responseText));
                 }
             }

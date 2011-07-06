@@ -12,9 +12,17 @@
     - Download data as csv
 - Console webpage (stats)
 - Console webpage (node manager)
-- Add mem, disk io read + write + wait monitoring remote.ex.js
+- Add mem, disk io read + write + wait monitoring
 - Remote testing should also aggregate summary-only stats (e.g. uniques)
 - Use stats.StatsGroup in monitoring and remote
 - Update READMEs
 - Write a DEVELOPERS doc that explains the components
 - Add zipf number generator
+- Download/copy data in CSV
+- Allow output directory to be customized
+- Add JMX monitoring support
+- Add support for bar graphs
+- Methods for graphing histograms
+- Timestamp graphs rather than using minutes
+- Allow graphs to be overlayed
+- Use agents for concurrent connections

@@ -5,6 +5,7 @@ Compatible with node v0.4.x
 Features:
 
 * rps is now a separate stat from result codes
+* summary graph time does not auto-update on open
 
 ## v0.3.0 (2011/06/16) ##
 
