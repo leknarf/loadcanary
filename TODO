@@ -23,6 +23,5 @@
 - Add JMX monitoring support
 - Add support for bar graphs
 - Methods for graphing histograms
-- Timestamp graphs rather than using minutes
 - Allow graphs to be overlayed
 - Use agents for concurrent connections

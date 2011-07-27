@@ -70,9 +70,9 @@
                 
                 for (var j in report.charts) {
                     var chart = report.charts[j];
-
+                    var rows = chart.rows.map(function(x) { return [new Date(x[0])].concat(x.slice(1)) });
                     if (graphs[chart.uid]) {
-                        graphs[chart.uid].updateOptions({"file": chart.rows, labels: chart.columns});
+                        graphs[chart.uid].updateOptions({"file": rows, labels: chart.columns});
                     } else {
                         var newchart = document.createElement("div");
                         newchart.setAttribute("class", "post");
@@ -86,11 +86,13 @@
                         main.appendChild(newchart);
                         graphs[chart.uid] = new Dygraph(
                             document.getElementById("chart" + chart.uid),
-                            chart.rows,
+                            rows,
                             {
                                 labelsDiv: document.getElementById("chartlegend" + chart.uid),
                                 labelsSeparateLines: true,
-                                labels: chart.columns
+                                labels: chart.columns,
+                                xAxisLabelWidth: 80,
+                                pixelsPerXLabel: 100
                             });
                     }
                 }
