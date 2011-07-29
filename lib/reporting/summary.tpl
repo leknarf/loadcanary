@@ -91,8 +91,7 @@
                                 labelsDiv: document.getElementById("chartlegend" + chart.uid),
                                 labelsSeparateLines: true,
                                 labels: chart.columns,
-                                xAxisLabelWidth: 80,
-                                pixelsPerXLabel: 100
+                                xAxisLabelWidth: 80
                             });
                     }
                 }
