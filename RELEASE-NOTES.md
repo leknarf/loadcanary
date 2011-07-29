@@ -4,9 +4,10 @@ Compatible with node v0.4.x
 
 Features:
 
-* rps is now a separate stat from result codes
-* summary graph time does not auto-update on open
-* graph x-axis now use times rather than minutes since test start
+* Add graphJmx() and graphProcess(); deprecate spawnAndMonitor(). These provide an easy way to graph JMX attributes as well as output from external processes, such as iostat.
+* rps is a separate stat from result codes
+* Test Results page timestamp does not auto-update on open
+* X-axes now use real timestamps rather than minutes since test start
 
 ## v0.3.0 (2011/06/16) ##
 

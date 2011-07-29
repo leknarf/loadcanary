@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 /*jslint forin:true */
 
 var assert = require('assert'),
@@ -10,38 +12,37 @@ REPORT_MANAGER.setLogFile('.reporting.test-output.html');
 var hostAndPort = 'localhost:9999',
     refreshInterval = 2;
 
-var report = REPORT_MANAGER.addReport('JMX'),
-    memory = report.getChart('Memory'),
-    cpu = report.getChart('CPU');
-
-var jmx = reporting.spawnAndMonitor(
-            /HeapMemoryUsage.max=(.*) HeapMemoryUsage.committed=(.*) HeapMemoryUsage.used=(.*) SystemLoadAverage=([0-9\.]*)/,
-            ['max', 'committed', 'used', 'loadavg'],
-            'java', [
-              '-jar', 'jmxstat/jmxstat.jar',
-              hostAndPort,
-              'java.lang:type=Memory[HeapMemoryUsage.max,HeapMemoryUsage.committed,HeapMemoryUsage.used]',
-              'java.lang:type=OperatingSystem[SystemLoadAverage]',
-              refreshInterval
-            ]
-          ),
-    iostat = reporting.spawnAndMonitor(
-            / +[^ ]+ +[^ ]+ +[^ ]+ +([^ ]+) +([^ ]+) +[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+/,
-            ['user', 'system'],
-            'iostat', [refreshInterval]
-          );
-
-jmx.stderr.on('data', function (data) {
-  console.log(data.toString());
+var jmx = reporting.graphJmx({
+    host: 'localhost:9999',
+    reportName: 'Monitors',
+    chartName: 'Heap',
+    mbeans: {
+        'Used': 'java.lang:type=Memory[HeapMemoryUsage.used]',
+        'Committed': 'java.lang:type=Memory[HeapMemoryUsage.committed]'
+    },
+    dataFormatter: function(data) {
+        return {
+            Used: data.Used / 1024,
+            Committed: data.Committed /= 1024
+        };
+    },
+    interval: refreshInterval
 });
 
-jmx.on('exit', function (code) {
-  if (code !== 0) { console.log('JMX monitor died with code ' + code); }
-  process.exit(code);
+reporting.graphProcess({
+    reportName: 'Monitors',
+    chartName: 'CPU (iostat)',
+    command: 'iostat -C ' + refreshInterval,
+    columns: [null, null, null, 'tps', 'MB/s'],
 });
 
-jmx.on('data', function(data) {
-  memory.put({max: data.max/1024, committed: data.committed/1024, used: data.used/1024});
+jmx.stderr.on('data', function(data) {
+    console.log(data.toString());
 });
 
-cpu.updateFromEventEmitter(iostat, ['user', 'system']);
+jmx.on('exit', function(code) {
+    if (code !== 0) {
+        console.log('JMX monitor died with code ' + code);
+    }
+    process.exit(code);
+});

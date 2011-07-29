@@ -8,7 +8,7 @@ var Dygraph;
 // ---------------
 // UI creation
 // ---------------
-var CHART_LEGEND_WIDTH = 70;
+var CHART_LEGEND_WIDTH = 120;
 
 var doc, optNodes, frmAddNode, cmdAddNode, cmdAdd, txtNewHost, 
     pnlCharts, pnlRightColumn, pnlSummary;
@@ -109,7 +109,7 @@ function addNodeButton(node) {
 }
 function addNodeTabs(node) {
     var tabs = $(['<div id="tab-charts-', node.id, '">',
-                  '  <div class="clsShortcutKeys">&lt; h &nbsp;&nbsp; l &gt;</div>',
+                  '  <div class="clsShortcutKeys">&lt; k &nbsp;&nbsp; j &gt;</div>',
                   '  <ul></ul>',
                   '</div>'
                   ].join(''));
@@ -151,7 +151,9 @@ function refreshReportGraphs(node) {
         for (var j in charts) {
             var chartId = 'chart-' + node.id + '-' + reportId + '-' + getIdFromString(j),
                 chartContainerId = chartId + '-container',
-                chartLegendId = chartId + '-legend';
+                chartLegendId = chartId + '-legend',
+                rows = charts[j].rows.map(function(x) { return [new Date(x[0])].concat(x.slice(1)); });
+
             if (!node.graphs[chartId]) {
                 tab.append([
                         '<h2 class="clsChartTitle">', j, '</h2><div id="', chartContainerId, '" class="clsChartContainer"> ',
@@ -161,15 +163,16 @@ function refreshReportGraphs(node) {
                     ].join(''));
                 node.graphs[chartId] = new Dygraph(
                     document.getElementById(chartId),
-                    charts[j].rows,
+                    rows,
                     {labelsDiv: $('#' + chartLegendId)[0],
                      labelsSeparateLines: true,
                      labels: charts[j].columns,
                      strokeWidth: 1.5,
+                     xAxisLabelWidth: 80
                     });
                 node.graphs[chartId].container = $('#' + chartContainerId);
             } else {
-                node.graphs[chartId].updateOptions({"file": charts[j].rows });
+                node.graphs[chartId].updateOptions({"file": rows, labels: charts[j].columns});
             }
         }
 
@@ -197,26 +200,26 @@ function initShortcuts() {
             return false;
         }
     });
-    doc.bind('keydown', 'k', function() {
+    doc.bind('keydown', 'shift+k', function() {
         var prev = optNodes.find('label.ui-state-active').parent().prev();
         if (!prev) { return; }
 
         prev.find('input').button().click();
         optNodes.buttonset('refresh');
     });
-    doc.bind('keydown', 'j', function() {
+    doc.bind('keydown', 'shift+j', function() {
         var next = optNodes.find('label.ui-state-active').parent().next();
         if (!next) { return; }
 
         next.find('input').button().click();
         optNodes.buttonset('refresh');
     });
-    doc.bind('keydown', 'h', function() {
+    doc.bind('keydown', 'k', function() {
         if (!selectedNode) { return; }
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected-1);
     });
-    doc.bind('keydown', 'l', function() {
+    doc.bind('keydown', 'j', function() {
         if (!selectedNode) { return; }
         var selected = selectedNode.tabs.tabs('option', 'selected');
         selectedNode.tabs.tabs('select', selected+1);

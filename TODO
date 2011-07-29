@@ -20,7 +20,6 @@
 - Add zipf number generator
 - Download/copy data in CSV
 - Allow output directory to be customized
-- Add JMX monitoring support
 - Add support for bar graphs
 - Methods for graphing histograms
 - Allow graphs to be overlayed
