@@ -5,6 +5,7 @@ Compatible with node v0.4.x
 Features:
 
 * Add graphJmx() and graphProcess(); deprecate spawnAndMonitor(). These provide an easy way to graph JMX attributes as well as output from external processes, such as iostat.
+* More readable date strings are used in log files names
 * rps is a separate stat from result codes
 * Test Results page timestamp does not auto-update on open
 * X-axes now use real timestamps rather than minutes since test start
