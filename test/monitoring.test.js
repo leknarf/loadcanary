@@ -164,7 +164,6 @@ module.exports = {
             assert.ok(responseBytesSummary);
                 
             assert.equal(resultCodesSummary.total, 2);
-            assert.ok(resultCodesSummary.rps >= 0);
             assert.equal(resultCodesSummary['200'], 2);
 
             assert.equal(headerCodeSummary['text/plain'], 2);

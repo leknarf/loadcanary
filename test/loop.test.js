@@ -27,7 +27,7 @@ module.exports = {
             assert.ok(Math.abs(duration - 1000) <= 60, '1000 == ' + duration);
         });
     },
-    'example: use Scheduler to vary execution rate and concurrency': function (beforeExit) {
+    'example: use profiles to vary execution rate and concurrency': function (beforeExit) {
         var i = 0, c = 0, start = new Date(), duration, 
             l = new MultiLoop({
                 fun: function(finished) { i++; finished(); },

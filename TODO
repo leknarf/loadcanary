@@ -24,3 +24,5 @@
 - Methods for graphing histograms
 - Allow graphs to be overlayed
 - Use agents for concurrent connections
+- Label Y axes
+- Add customizable notes section to summary page
