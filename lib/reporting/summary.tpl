@@ -17,9 +17,10 @@
             a:hover { text-decoration: none; }
             #main { float:left; width: 740px; }
             #sidebar { float:right; width: 260px; height: 100%; border-left: #BFC9AE solid 1px; margin-left: 10px; padding-left: 10px;}
-            #header { width: 100%; height: 100px; margin: 0px auto; color: #FFFFFF; background: #699C4D; border: 3px solid darkgreen; border-style: none none solid none;}
+            #header { width: 100%; height: 120px; margin: 0px auto; color: #FFFFFF; background: #699C4D; border: 3px solid darkgreen; border-style: none none solid none;}
             #header h1 { width: 1024; padding: 25px 0px 0px 0px; margin: 0px auto; font-weight: normal; }
             #header p { width: 1024; padding: 15px 0px 0px 0px; margin: 0px auto; }
+            #chkPause { float: right; margin-right: 10px; }
             #page { width: 1024px; margin: 0px auto; padding: 30px 0px; }
             .post { margin: 0px 0px 30px 0px; }
             .post h1, .post h2 { margin: 0px; padding: 0px 0px 5px 0px; border-bottom: #BFC9AE solid 1px; color: #232F01; }
@@ -36,6 +37,7 @@
         <div id="header">
             <h1>Test Results</h1>
             <p id="timestamp"><%=new Date()%></p>
+            <p><input type="checkbox" id="chkAutoRefresh" checked="true"><label for="chkAutoRefresh">Auto-refresh</label></input><p>
         </div>
         <div id="page">
             <div id="main"></div>
@@ -101,14 +103,16 @@
         if(navigator.appName == "Microsoft Internet Explorer") { http = new ActiveXObject("Microsoft.XMLHTTP"); } else { http = new XMLHttpRequest(); }
 
         setInterval(function() {
-            http.open("GET", "/reports");
-            http.onreadystatechange=function() { 
-                if (http.readyState == 4 && http.status == 200) {
-                    updateDate();
-                    update(JSON.parse(http.responseText));
+            if (document.getElementById("chkAutoRefresh").checked) {
+                http.open("GET", "/reports");
+                http.onreadystatechange=function() { 
+                    if (http.readyState == 4 && http.status == 200) {
+                        updateDate();
+                        update(JSON.parse(http.responseText));
+                    }
                 }
+                http.send(null);
             }
-            http.send(null);
         }, <%=refreshPeriodMs%>);
         
         graphs = {};
