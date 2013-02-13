@@ -1,3 +1,10 @@
+CURRENT STATE
+================
+
+In case it isn't obvious, this project is no longer being actively developed or maintained.
+
+Feel free to fork or take the idea and run with it.
+
 INSTALLING
 ================
 
