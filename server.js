@@ -8,6 +8,6 @@ app.configure(function(){
   //server.use('/media', express.static(__dirname + '/media'));
   app.use(express.static(__dirname + '/html'));
 });
-app.listen(1337);
+app.listen(80);
 
 // app.application.listen(port);
