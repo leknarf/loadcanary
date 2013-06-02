@@ -1,1 +1,2 @@
-# Sandbag: Active load testing and capacity planning
+# LoadCanary: Active load testing and capacity planning
+
