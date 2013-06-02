@@ -9,7 +9,7 @@ var data_latency = [], data_real_users = [], data_virtual_users = [], time = (ne
 
 
 function get_real_users() {
-    current_real_users = current_real_users + Math.round(Math.random()*0.95);
+    current_real_users += Math.round(0.0015*Math.random()*(max_user_capacity - current_real_users));
     return current_real_users;
 }
 
