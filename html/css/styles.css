@@ -6,12 +6,20 @@ body {
   body p.sub {
     color: #999; }
   body h1, body h2, body h3, body h4, body h5, body h6 {
-    text-transform: uppercase;
+    /* text-transform: uppercase;*/
     font-weight: 300; }
 
 #logo {
-  color: #333; }
-
+  color: #333; 
+      background: url("../img/loadCanary_logo.jpg") no-repeat scroll 1px center transparent;
+    float: left;
+    height: 60px;
+    margin-left: 0;
+    padding-left: 0;
+    padding-right: 0;
+    width: 350px;
+  }
+  
 .page {
   width: 980px;
   margin: auto;
@@ -50,7 +58,7 @@ body {
 #in-nav {
   background-color: white;
   background-repeat: repeat;
-  height: 50px;
+  height: 60px;
   padding-top: 10px; }
   #in-nav ul {
     position: relative;
@@ -62,7 +70,7 @@ body {
         padding: 10px; }
 
 #in-sub-nav {
-  background-color: #333333;
+  background-color: #467;
   -moz-box-shadow: inset 0px 0px 10px #111111;
   -webkit-box-shadow: inset 0px 0px 10px #111111;
   box-shadow: inset 0px 0px 10px #111111; }
@@ -82,7 +90,7 @@ body {
       color: #FFF;
       font-weight: 100; }
     #in-sub-nav li a:hover, #in-sub-nav li a.active {
-      background-color: #555;
+      background-color: #111;
       text-decoration: none; }
     #in-sub-nav li span.label.pull-right {
       position: relative;
@@ -92,7 +100,9 @@ body {
 footer {
   padding-top: 20px;
   padding-bottom: 20px;
-  color: #999; }
+  color: #fff; 
+  background-color: #467;
+  }
   footer a {
     color: #999; }
 
