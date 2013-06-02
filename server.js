@@ -1,3 +1,7 @@
+process.on('uncaughtException', function (exception) {
+	console.log(exception);
+});
+
 var express = require('express');
 
 var app = express();

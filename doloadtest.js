@@ -5,9 +5,6 @@ run: function() {
     nl = require('nodeload/nodeload'),
 	fs = require('fs');
 
-    http.createServer(function (req, res) { res.writeHead(200); res.end(); }).listen(8080);
-    console.log("Server to load test listening on 8080.");
-
     var files = fs.readdirSync('.');
     var removeRegex =/results.+(html|log)/;
     for(var i = 0; i < files.length; i++) {
@@ -31,7 +28,8 @@ run: function() {
             return client.request('GET', "/" + Math.floor(Math.random()*10000));
         }
     });
-    loadtest.on('end', function() { process.exit(0); });
-    return 'running...';
+    loadtest.on('end', function() { /* process.exit(0); */ });
+    return '';
+
 }
 };
