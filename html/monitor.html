@@ -1,0 +1,21 @@
+<head>
+<script language='javascript' src='js/jquery-2.0.2.min.js'></script>
+<script language='javascript'>
+var lastHash = '';
+$(document).ready(function() {
+	setInterval(function() {
+               $.get('http://localhost:1337/getdata', function(data) {
+                        var currentHtml = $('#response').html();
+			lastHash = data.md5;
+			var output = lastHash;
+			$('#response').html(currentHtml + "<br/>" + output);
+                });
+	},500);
+});
+
+</script>
+</head>
+
+<body>
+<div id='response'></div>
+</body>

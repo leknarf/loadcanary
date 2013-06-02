@@ -1,0 +1,18 @@
+<head>
+<script language='javascript' src='js/jquery-2.0.2.min.js'></script>
+<script language='javascript'>
+$(document).ready(function() {
+	$('#submitBtn').click(function() {
+		$.get('http://localhost:1337/request', function(list) {
+               		$('#response').html(list); // show the list
+	        });
+});
+
+});
+</script>
+</head>
+
+<body>
+<input type='submit' value='submit!' id='submitBtn'/>
+<div id='response'></div>
+</body>
