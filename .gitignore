@@ -1,9 +1,16 @@
 node_modules
+<<<<<<< HEAD
+=======
+*.log
+>>>>>>> f2340362a6a9e48e3220103c7f0b60721872013e
 
 .DS_Store
 
 html/.DS_Store
+<<<<<<< HEAD
 
 .idea/scopes/scope_settings.xml
 
 .idea/workspace.xml
+=======
+>>>>>>> f2340362a6a9e48e3220103c7f0b60721872013e
