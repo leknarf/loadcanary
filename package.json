@@ -1,8 +1,0 @@
-{
-  "name": "loadcanary",
-  "version": "0.0.1",
-  "dependencies": {
-    "coffee-script": "*",
-    "express": "*"
-  }
-}
