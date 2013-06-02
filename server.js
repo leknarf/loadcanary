@@ -14,4 +14,4 @@ app.get('/getdata', function(req, res){
     res.json(request.run()); // try res.json() if result is an object or array
 });
 
-app.listen(1337);
+app.listen(process.env.PORT || 1337);
