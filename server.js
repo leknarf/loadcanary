@@ -8,10 +8,12 @@ var app = express();
 app.configure(function(){
   app.use(express.static(__dirname + '/html'));
 });
+app.use(express.bodyParser());
 
-app.get('/request', function(req, res){
+app.post('/request', function(req, res){
     var request = require('./doloadtest.js');
-    res.send(request.run()); // try res.json() if result is an object or array
+    var params = req.body;
+    res.send(request.run(params)); // try res.json() if result is an object or array
 });
 app.get('/getdata', function(req, res){
     var request = require('./monitor.js');

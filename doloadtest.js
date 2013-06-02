@@ -1,6 +1,6 @@
 module.exports = {
-run: function() {
-   // This test will hit localhost:8080 with 20 concurrent connections for 10 minutes.
+run: function(params) {
+   // This test will hit localhost:8080 with x concurrent connections for y minutes.
     var http = require('http'),
     nl = require('nodeload/nodeload'),
 	fs = require('fs');
@@ -19,15 +19,16 @@ run: function() {
         host: 'localhost',
         port: 8000,
         numClients: 20,
-        timeLimit: 30,
-        targetRps: 200,
-	loadProfile: [[0,0], [3, 20], [6, 200], [9, 300]],
-	userProfile: [[0,0], [3, 2], [6, 20], [9, 50]],
+        timeLimit: params.time,
+        targetRps: 100,
+	loadProfile: [[0,0], [1, params.hitsPeak/10], [5, params.hits/10], [params.time-1, params.hits/10]],
+	userProfile: [[0,0], [1, params.usersPeak/10], [5, params.users/10], [params.time-1, params.users/10]],
         stats: ['latency', 'result-codes', { name: 'http-errors', successCodes: [200], log: 'http-errors.log' }],
         requestGenerator: function(client) {
             return client.request('GET', "/" + Math.floor(Math.random()*10000));
         }
     });
+    loadtest.keepAlive = true;
     loadtest.on('end', function() { /* process.exit(0); */ });
     return '';
 

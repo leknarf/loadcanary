@@ -8,14 +8,14 @@
     <title>LoadCanary</title>
     <link rel="stylesheet" href="css/bootstrap.css">
     <link rel="stylesheet" href="css/bootstrap-responsive.css">
-    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Lato:100,300,400,700,900,100italic,300italic,400italic,700italic,900italic">
+    <link rel="stylesheet" href="css/lato-font.css">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/toastr.css">
     <link rel="stylesheet" href="css/fullcalendar.css">
-    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script src="js/jquery-2.0.2.min.js"></script>
     <script src="js/bootstrap.js"></script>
     <script src="js/jquery.knob.js"></script>
-    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="js/d3.v3.min.js"></script>
     <script src="js/jquery.sparkline.min.js"></script>
     <script src="js/toastr.js"></script>
     <script src="js/jquery.tablesorter.min.js"></script>
@@ -23,6 +23,14 @@
     <script src="js/fullcalendar.min.js"></script>
     <script src="js/gcal.js"></script>
     <script src="js/setup.js"></script>
+
+<script src="js/highcharts.js"></script>
+<script src="js/modules/exporting.js"></script>
+<script type="text/javascript" src="/js/loadcanary.js"></script>
+
+<script>
+jQuery.cssProps.opacity = 'opacity';
+</script>
   </head>
   <body>
     <div id="in-nav">
@@ -66,9 +74,12 @@
   <div class="row">
 
     <div class="span12">
-      <h4 class="header">Monitor Results For: <strong>www.thedailybeast.com</strong></h4>
+      <h4 class="header">Monitor Results For: <strong>www.newsweek.com</strong></h4>
       </hr>
-      <div id="d3" style="width: 100%; margin-top: -30px"></div> <br/>
+      <!-- <div id="d3" style="width: 100%; margin-top: -30px"></div> <br/> -->
+	<div id="container" style="min-width: 400px; height: 400px; margin: 0 auto"></div>
+	<div id="container2" style="min-width: 400px; height: 400px; margin: 0 auto"></div>
+
     </div>
 
   </div>

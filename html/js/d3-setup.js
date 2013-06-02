@@ -1,7 +1,8 @@
 var n = 3, // number of layers
     m = 31, // number of samples per layer
     stack = d3.layout.stack(),
-    layers = stack(d3.range(n).map(function() { return bumpLayer(m, .1); })),
+    //layers = stack(d3.range(n).map(function() { return bumpLayer(m, .1); })),
+    layers = stack(d3.range(n).map(function() { return getLoadProfile(m, .1); })),
     yGroupMax = d3.max(layers, function(layer) { return d3.max(layer, function(d) { return d.y; }); }),
     yStackMax = d3.max(layers, function(layer) { return d3.max(layer, function(d) { return d.y0 + d.y; }); });
 
@@ -106,6 +107,11 @@ function bumpLayer(n, o) {
   var a = [], i;
   for (i = 0; i < n; ++i) a[i] = o + o * Math.random();
   for (i = 0; i < 5; ++i) bump(a);
+  return a.map(function(d, i) { return {x: i, y: Math.max(0, d)}; });
+}
+
+function getLoadProfile(n, o) {
+  var a = [1,2,4,6,8,8,8,8,8,8,8,8,8,8,8,8,8,7.5,7,6.5,6,5.5,5,4.5,4,3.5,3,2.5,2,1.5,1];
   return a.map(function(d, i) { return {x: i, y: Math.max(0, d)}; });
 }
 
