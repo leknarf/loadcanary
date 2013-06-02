@@ -3,4 +3,4 @@ var app = express();
 app.configure(function(){
   app.use(express.static(__dirname + '/html'));
 });
-app.listen(80);
+app.listen(process.env.PORT || 1337);
